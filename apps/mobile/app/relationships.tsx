@@ -25,7 +25,7 @@ type RelTab = 'structures' | 'feelings';
 interface RelationshipRow {
   id: string;
   name: string;
-  type: 'polarization' | 'alliance';
+  type: 'polarization' | 'alliance' | 'protective' | 'activation_chain';
   created_at: string | null;
   updated_at: string | null;
   side_a_label: string | null;
@@ -41,7 +41,7 @@ interface MemberChip {
 interface RelationshipItem {
   id: string;
   name: string;
-  type: 'polarization' | 'alliance';
+  type: 'polarization' | 'alliance' | 'protective' | 'activation_chain';
   created_at: string | null;
   sideALabel: string;
   sideBLabel: string;
@@ -138,9 +138,11 @@ async function autoCreateFromPartRelationships(): Promise<void> {
 
 export default function RelationshipsScreen() {
   const [activeTab, setActiveTab]         = useState<RelTab>('structures');
-  const [polarizations, setPolarizations] = useState<RelationshipItem[]>([]);
-  const [alliances, setAlliances]         = useState<RelationshipItem[]>([]);
-  const [feelingEdges, setFeelingEdges]   = useState<FeelingEdge[]>([]);
+  const [polarizations, setPolarizations]       = useState<RelationshipItem[]>([]);
+  const [alliances, setAlliances]               = useState<RelationshipItem[]>([]);
+  const [protectives, setProtectives]           = useState<RelationshipItem[]>([]);
+  const [activationChains, setActivationChains] = useState<RelationshipItem[]>([]);
+  const [feelingEdges, setFeelingEdges]         = useState<FeelingEdge[]>([]);
 
   const navigatingRef = useRef(false);
   const safeNavigate = useCallback((href: string) => {
@@ -197,6 +199,8 @@ export default function RelationshipsScreen() {
 
         setPolarizations(items.filter((i) => i.type === 'polarization'));
         setAlliances(items.filter((i) => i.type === 'alliance'));
+        setProtectives(items.filter((i) => i.type === 'protective'));
+        setActivationChains(items.filter((i) => i.type === 'activation_chain'));
 
         const fe = await getAllFeelingEdges();
         setFeelingEdges(fe);
@@ -336,6 +340,95 @@ export default function RelationshipsScreen() {
                         {extraCount > 0 && (
                           <View style={styles.memberChip}>
                             <Text style={styles.memberChipText}>+{extraCount} more</Text>
+                          </View>
+                        )}
+                      </View>
+                    </View>
+                    <Ionicons name="chevron-forward" size={16} color="#C5C3BE" />
+                  </View>
+                  {item.created_at ? (
+                    <Text style={styles.cardDate}>{fmtDate(item.created_at)}</Text>
+                  ) : null}
+                </TouchableOpacity>
+              );
+            })
+          )}
+
+          <Text style={[styles.sectionHeader, styles.sectionHeaderSpaced]}>Protective</Text>
+          {protectives.length === 0 ? (
+            <Text style={styles.emptyText}>No protective relationships logged yet</Text>
+          ) : (
+            protectives.map((item) => {
+              const protectors = item.members.filter(m => m.side === 'a');
+              const protected_ = item.members.filter(m => m.side === 'b');
+              const protectorNames = protectors.map(m => m.display_name ?? '?').join(', ');
+              const protectedNames = protected_.map(m => m.display_name ?? '?').join(', ');
+              return (
+                <TouchableOpacity
+                  key={item.id}
+                  style={styles.card}
+                  activeOpacity={0.7}
+                  onPress={() => safeNavigate(`/relationship-profile?id=${item.id}`)}
+                >
+                  <View style={styles.cardTop}>
+                    <View style={styles.cardIconWrap}>
+                      <Ionicons name="shield-checkmark-outline" size={18} color="#5B7FB8" />
+                    </View>
+                    <View style={styles.cardBody}>
+                      <Text style={styles.cardName}>{item.name}</Text>
+                      <Text style={styles.cardSides} numberOfLines={1}>
+                        {protectorNames || 'Protector'}
+                        <Text style={[styles.cardVs, { color: '#5B7FB8' }]}> → </Text>
+                        {protectedNames || 'Protected'}
+                      </Text>
+                    </View>
+                    <Ionicons name="chevron-forward" size={16} color="#C5C3BE" />
+                  </View>
+                  {item.created_at ? (
+                    <Text style={styles.cardDate}>{fmtDate(item.created_at)}</Text>
+                  ) : null}
+                </TouchableOpacity>
+              );
+            })
+          )}
+
+          <Text style={[styles.sectionHeader, styles.sectionHeaderSpaced]}>Activation Chains</Text>
+          {activationChains.length === 0 ? (
+            <Text style={styles.emptyText}>No activation chains logged yet</Text>
+          ) : (
+            activationChains.map((item) => {
+              // Members ordered by side (numeric string '1','2','3'...)
+              const ordered = [...item.members].sort((a, b) => {
+                const ai = parseInt(a.side ?? '0', 10);
+                const bi = parseInt(b.side ?? '0', 10);
+                return ai - bi;
+              });
+              const displayChain = ordered.slice(0, 3);
+              const extraCount = ordered.length - displayChain.length;
+              return (
+                <TouchableOpacity
+                  key={item.id}
+                  style={styles.card}
+                  activeOpacity={0.7}
+                  onPress={() => safeNavigate(`/relationship-profile?id=${item.id}`)}
+                >
+                  <View style={styles.cardTop}>
+                    <View style={styles.cardIconWrap}>
+                      <Ionicons name="git-network-outline" size={18} color="#B88A00" />
+                    </View>
+                    <View style={styles.cardBody}>
+                      <Text style={styles.cardName}>{item.name}</Text>
+                      <View style={styles.memberChips}>
+                        {displayChain.map((m, i) => (
+                          <View key={i} style={[styles.memberChip, { backgroundColor: '#FFFBEB' }]}>
+                            <Text style={[styles.memberChipText, { color: '#B88A00' }]} numberOfLines={1}>
+                              {m.display_name ?? '?'}
+                            </Text>
+                          </View>
+                        ))}
+                        {extraCount > 0 && (
+                          <View style={[styles.memberChip, { backgroundColor: '#FFFBEB' }]}>
+                            <Text style={[styles.memberChipText, { color: '#B88A00' }]}>+{extraCount} more</Text>
                           </View>
                         )}
                       </View>

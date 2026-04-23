@@ -31,7 +31,7 @@ type PartType = 'manager' | 'firefighter' | 'exile' | 'self';
 interface RelRow {
   id: string;
   name: string;
-  type: 'polarization' | 'alliance';
+  type: 'polarization' | 'alliance' | 'protective' | 'activation_chain';
 }
 
 interface MemberRow {
@@ -128,7 +128,19 @@ export default function RelationshipMembersScreen() {
     const db = getDatabase();
     const newMemberId = generateId();
     const now = nowIso();
-    const sideValue = rel?.type === 'polarization' ? (side === 'a' ? 'a' : 'b') : null;
+    const sideValue: string | null = (() => {
+      if (rel?.type === 'polarization' || rel?.type === 'protective') {
+        return side === 'a' ? 'a' : 'b';
+      }
+      if (rel?.type === 'activation_chain') {
+        const maxPos = members.reduce((max, m) => {
+          const n = parseInt(m.side ?? '0', 10);
+          return n > max ? n : max;
+        }, 0);
+        return String(maxPos + 1);
+      }
+      return null;
+    })();
 
     await db.runAsync(
       `INSERT INTO relationship_members (id, relationship_id, member_type, part_id, side, created_at)
@@ -162,8 +174,8 @@ export default function RelationshipMembersScreen() {
     router.back();
   }
 
-  const sideAMembers = rel?.type === 'polarization' ? members.filter((m) => m.side === 'a') : [];
-  const sideBMembers = rel?.type === 'polarization' ? members.filter((m) => m.side === 'b') : [];
+  const sideAMembers = (rel?.type === 'polarization' || rel?.type === 'protective') ? members.filter((m) => m.side === 'a') : [];
+  const sideBMembers = (rel?.type === 'polarization' || rel?.type === 'protective') ? members.filter((m) => m.side === 'b') : [];
   const allianceMembers = rel?.type === 'alliance' ? members : [];
 
   const availableParts = allParts.filter((p) => !existingPartIds.includes(p.id));
@@ -257,6 +269,85 @@ export default function RelationshipMembersScreen() {
             </TouchableOpacity>
           </>
         )}
+
+        {rel.type === 'protective' && (
+          <>
+            <Text style={styles.sideLabel}>Protector(s)</Text>
+            {sideAMembers.map((m) => (
+              <MemberItem
+                key={m.member_id}
+                member={m}
+                relType="protective"
+                onRemove={() => handleRemove(m.member_id)}
+                onChangeSide={(s) => handleChangeSide(m.member_id, s)}
+              />
+            ))}
+            <TouchableOpacity
+              style={styles.addBtn}
+              onPress={() => { setAddingSide('a'); setShowSelector(true); }}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="add" size={18} color="#5B7FB8" />
+              <Text style={[styles.addBtnText, { color: '#5B7FB8' }]}>Add Protector</Text>
+            </TouchableOpacity>
+
+            <View style={styles.sideDivider} />
+
+            <Text style={styles.sideLabel}>Protected part(s)</Text>
+            {sideBMembers.map((m) => (
+              <MemberItem
+                key={m.member_id}
+                member={m}
+                relType="protective"
+                onRemove={() => handleRemove(m.member_id)}
+                onChangeSide={(s) => handleChangeSide(m.member_id, s)}
+              />
+            ))}
+            <TouchableOpacity
+              style={styles.addBtn}
+              onPress={() => { setAddingSide('b'); setShowSelector(true); }}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="add" size={18} color="#5B7FB8" />
+              <Text style={[styles.addBtnText, { color: '#5B7FB8' }]}>Add Protected Part</Text>
+            </TouchableOpacity>
+          </>
+        )}
+
+        {rel.type === 'activation_chain' && (
+          <>
+            <Text style={styles.sideLabel}>Chain sequence</Text>
+            {[...members]
+              .sort((a, b) => {
+                const na = parseInt(a.side ?? '999', 10);
+                const nb = parseInt(b.side ?? '999', 10);
+                return na - nb;
+              })
+              .map((m, idx) => (
+                <View key={m.member_id} style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                  <Text style={{ fontSize: 13, fontWeight: '700', color: '#B88A00', width: 20 }}>
+                    {idx + 1}
+                  </Text>
+                  <View style={{ flex: 1 }}>
+                    <MemberItem
+                      member={m}
+                      relType="activation_chain"
+                      onRemove={() => handleRemove(m.member_id)}
+                      onChangeSide={() => undefined}
+                    />
+                  </View>
+                </View>
+              ))}
+            <TouchableOpacity
+              style={styles.addBtn}
+              onPress={() => { setAddingSide('member'); setShowSelector(true); }}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="add" size={18} color="#B88A00" />
+              <Text style={[styles.addBtnText, { color: '#B88A00' }]}>Add to chain</Text>
+            </TouchableOpacity>
+          </>
+        )}
       </ScrollView>
 
       {/* Save button */}
@@ -319,7 +410,7 @@ function MemberItem({
   onChangeSide,
 }: {
   member: MemberRow;
-  relType: 'polarization' | 'alliance';
+  relType: 'polarization' | 'alliance' | 'protective' | 'activation_chain';
   onRemove: () => void;
   onChangeSide: (side: 'a' | 'b') => void;
 }) {
@@ -337,7 +428,7 @@ function MemberItem({
         </Text>
       </View>
       <Text style={memberStyles.name} numberOfLines={1}>{member.display_name ?? '?'}</Text>
-      {relType === 'polarization' && (
+      {(relType === 'polarization' || relType === 'protective') && (
         <View style={memberStyles.sideToggle}>
           <TouchableOpacity
             style={[memberStyles.sideBtn, member.side === 'a' && memberStyles.sideBtnActive]}

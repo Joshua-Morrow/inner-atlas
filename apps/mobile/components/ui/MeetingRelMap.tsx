@@ -6,12 +6,13 @@
  * terminate at node surfaces and bend around intervening nodes.
  *
  * Focus mode: tap a node to dim unrelated edges/nodes. Tap again (or the
- * canvas background) to exit.
+ * canvas background) to exit. Pan/zoom via PanResponder.
  */
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  ScrollView,
+  Platform,
+  PanResponder,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -30,6 +31,9 @@ import {
   routeAroundObstacles,
   runLayout,
 } from '@/lib/graph-layout';
+
+// ── DEV: set true to show layout tuning panel on device ──────────────────────
+const SHOW_DEV_TUNING = false; // flip to true when tuning
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -80,6 +84,41 @@ function isSelfNode(node: RelationalMap['nodes'][number]): boolean {
   return node.id === 'self' || node.partType === 'self';
 }
 
+// ─── Dev tuning stepper ───────────────────────────────────────────────────────
+
+function DevSlider({
+  label, value, min, max, step, onChange, onRelease,
+}: {
+  label: string;
+  value: number;
+  min: number;
+  max: number;
+  step: number;
+  onChange: (v: number) => void;
+  onRelease: () => void;
+}) {
+  return (
+    <View style={devStyles.sliderRow}>
+      <Text style={devStyles.sliderLabel}>{label}</Text>
+      <TouchableOpacity
+        style={devStyles.stepBtn}
+        onPress={() => { onChange(Math.max(min, parseFloat((value - step).toFixed(4)))); onRelease(); }}
+        activeOpacity={0.7}
+      >
+        <Text style={devStyles.stepBtnText}>−</Text>
+      </TouchableOpacity>
+      <Text style={devStyles.sliderValue}>{value.toFixed(value < 1 ? 3 : 0)}</Text>
+      <TouchableOpacity
+        style={devStyles.stepBtn}
+        onPress={() => { onChange(Math.min(max, parseFloat((value + step).toFixed(4)))); onRelease(); }}
+        activeOpacity={0.7}
+      >
+        <Text style={devStyles.stepBtnText}>+</Text>
+      </TouchableOpacity>
+    </View>
+  );
+}
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
 interface Props {
@@ -92,26 +131,73 @@ export function MeetingRelMap({ relMap, onContinue }: Props) {
   const canvasWidth = screenWidth - 32;
 
   const [focusedNodeId, setFocusedNodeId] = useState<string | null>(null);
+  const [pan, setPan] = useState({ x: 0, y: 0 });
+  const [mapScale, setMapScale] = useState(1);
+  const [hasInteracted, setHasInteracted] = useState(false);
 
-  // ── Layout: Self pinned at bottom, parts arranged above ───────────────────
+  // Dev tuning state — no-op when SHOW_DEV_TUNING = false
+  const [devRepulsion,  setDevRepulsion]  = useState(18000);
+  const [devCentering,  setDevCentering]  = useState(0.003);
+  const [devSelfRest,   setDevSelfRest]   = useState(0.45);
+  const [devEdgeRest,   setDevEdgeRest]   = useState(130);
+  const [devEdgeStiff,  setDevEdgeStiff]  = useState(0.04);
+  const [devSelfStiff,  setDevSelfStiff]  = useState(0.015);
+  const [devNodeRadius, setDevNodeRadius] = useState(35);
+  const [devSelfRadius, setDevSelfRadius] = useState(30);
+  const [devIterations, setDevIterations] = useState(500);
+  const [devKey, setDevKey] = useState(0);
 
-  const { coords, canvasHeight } = useMemo(() => {
+  const panRef           = useRef({ x: 0, y: 0 });
+  const scaleRef         = useRef(1);
+  const lastPan          = useRef({ x: 0, y: 0 });
+  const lastScale        = useRef(1);
+  const lastTouchDist    = useRef<number | null>(null);
+  const wasPinching      = useRef(false);
+  const canvasOffsetRef  = useRef({ x: 0, y: 0 });
+  const canvasViewRef    = useRef<View>(null);
+  const coordsRef        = useRef<Record<string, { x: number; y: number }>>({});
+  const focusedNodeIdRef = useRef<string | null>(null);
+  const nodesRef         = useRef(relMap.nodes);
+
+  // Keep refs up-to-date on each render
+  nodesRef.current = relMap.nodes;
+
+  useEffect(() => { panRef.current = pan; }, [pan]);
+  useEffect(() => { scaleRef.current = mapScale; }, [mapScale]);
+  useEffect(() => { focusedNodeIdRef.current = focusedNodeId; }, [focusedNodeId]);
+
+  // ── Canvas sizing ─────────────────────────────────────────────────────────
+
+  // Fixed portrait canvas — fills available screen space cleanly
+  const baseCanvasHeight = Math.round(canvasWidth * 1.45);
+  const canvasHeight = relMap.nodes.length > 8 ? baseCanvasHeight * 2 : baseCanvasHeight;
+  const viewportHeight = baseCanvasHeight;
+
+  // ── Layout: Self pinned at bottom, parts spread above ────────────────────
+
+  const coords = useMemo(() => {
     const selfNode = relMap.nodes.find(isSelfNode);
-    const baseHeight = Math.max(canvasWidth, 380);
-    const extraForCount = Math.max(0, relMap.nodes.length - 6) * 35;
-    const height = baseHeight + extraForCount;
-
     const selfX = canvasWidth / 2;
-    const selfY = height - 70;
+    const selfY = canvasHeight - 90;
     const cx = canvasWidth / 2;
-    const cy = height * 0.40;
+    const cy = canvasHeight * 0.35;
+
+    const useRepulsion  = SHOW_DEV_TUNING ? devRepulsion  : 18000;
+    const useCentering  = SHOW_DEV_TUNING ? devCentering  : 0.003;
+    const useSelfRest   = SHOW_DEV_TUNING ? devSelfRest   : 0.45;
+    const useEdgeRest   = SHOW_DEV_TUNING ? devEdgeRest   : 130;
+    const useEdgeStiff  = SHOW_DEV_TUNING ? devEdgeStiff  : 0.04;
+    const useSelfStiff  = SHOW_DEV_TUNING ? devSelfStiff  : 0.015;
+    const useNodeR      = SHOW_DEV_TUNING ? devNodeRadius : 35;
+    const useSelfR      = SHOW_DEV_TUNING ? devSelfRadius : 30;
+    const useIterations = SHOW_DEV_TUNING ? devIterations : 500;
 
     const layoutNodes: LayoutNode[] = relMap.nodes.map(node => {
       const self = isSelfNode(node);
       if (self) {
         return {
           id: node.id,
-          radius: SELF_RADIUS + 8,
+          radius: SELF_RADIUS + useSelfR,
           pinX: selfX, pinY: selfY,
           x: selfX, y: selfY,
           groupKey: 'self',
@@ -119,7 +205,7 @@ export function MeetingRelMap({ relMap, onContinue }: Props) {
       }
       return {
         id: node.id,
-        radius: NODE_RADIUS + 16,
+        radius: NODE_RADIUS + useNodeR,
         groupKey: node.partType,
       };
     });
@@ -127,40 +213,43 @@ export function MeetingRelMap({ relMap, onContinue }: Props) {
     const layoutEdges: LayoutEdge[] = relMap.edges.map(edge => ({
       fromId: edge.fromId,
       toId: edge.toId,
-      restLength: 110,
-      stiffness: 0.07,
+      restLength: useEdgeRest,
+      stiffness: useEdgeStiff,
     }));
 
-    // Synthetic Self→part edges keep the constellation above Self
     if (selfNode) {
       for (const node of relMap.nodes) {
         if (isSelfNode(node)) continue;
         layoutEdges.push({
           fromId: selfNode.id,
           toId: node.id,
-          restLength: 160,
-          stiffness: 0.025,
+          restLength: canvasHeight * useSelfRest,
+          stiffness: useSelfStiff,
         });
       }
     }
 
     const result = runLayout(layoutNodes, layoutEdges, {
       width: canvasWidth,
-      height,
+      height: canvasHeight,
       centerX: cx,
       centerY: cy,
-      iterations: 300,
-      repulsionStrength: 6500,
-      centeringForce: 0.008,
+      iterations: useIterations,
+      repulsionStrength: useRepulsion,
+      centeringForce: useCentering,
+      groupAttraction: 0.0003,
     });
 
     const coordMap: Record<string, { x: number; y: number }> = {};
     for (const [id, pos] of result.positions) {
       coordMap[id] = pos;
     }
-    return { coords: coordMap, canvasHeight: height };
+    coordsRef.current = coordMap;
+    return coordMap;
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [relMap.nodes.length, relMap.edges.length, canvasWidth]);
+  }, SHOW_DEV_TUNING
+    ? [relMap.nodes.length, relMap.edges.length, canvasWidth, devKey]
+    : [relMap.nodes.length, relMap.edges.length, canvasWidth]);
 
   // ── Connected nodes for focus mode ────────────────────────────────────────
 
@@ -174,7 +263,7 @@ export function MeetingRelMap({ relMap, onContinue }: Props) {
     return set;
   }, [focusedNodeId, relMap.edges]);
 
-  // ── Obstacle list for edge routing ───────────────────────────────────────
+  // ── Obstacle list for edge routing ────────────────────────────────────────
 
   const obstacles: Obstacle[] = relMap.nodes.flatMap(node => {
     const coord = coords[node.id];
@@ -187,7 +276,92 @@ export function MeetingRelMap({ relMap, onContinue }: Props) {
     }];
   });
 
-  // ── Render edges ─────────────────────────────────────────────────────────
+  // ── PanResponder ──────────────────────────────────────────────────────────
+
+  const mapPanResponder = useRef(PanResponder.create({
+    onStartShouldSetPanResponder: () => true,
+    onMoveShouldSetPanResponder: (_, gs) => Math.abs(gs.dx) > 2 || Math.abs(gs.dy) > 2,
+
+    onPanResponderGrant: () => {
+      lastPan.current = { ...panRef.current };
+      lastScale.current = scaleRef.current;
+      wasPinching.current = false;
+      lastTouchDist.current = null;
+    },
+
+    onPanResponderMove: (evt, gs) => {
+      const touches = evt.nativeEvent.touches as unknown as Array<{ pageX: number; pageY: number }>;
+      if (touches.length === 2) {
+        wasPinching.current = true;
+        const dist = Math.hypot(
+          touches[1].pageX - touches[0].pageX,
+          touches[1].pageY - touches[0].pageY,
+        );
+        const mid = {
+          x: (touches[0].pageX + touches[1].pageX) / 2 - canvasOffsetRef.current.x,
+          y: (touches[0].pageY + touches[1].pageY) / 2 - canvasOffsetRef.current.y,
+        };
+        if (lastTouchDist.current !== null) {
+          const scaleDelta = dist / lastTouchDist.current;
+          const newScale = Math.min(2.5, Math.max(0.4, lastScale.current * scaleDelta));
+          const ratio = newScale / lastScale.current;
+          const newPanX = mid.x - (mid.x - lastPan.current.x) * ratio;
+          const newPanY = mid.y - (mid.y - lastPan.current.y) * ratio;
+          panRef.current = { x: newPanX, y: newPanY };
+          scaleRef.current = newScale;
+          setPan({ x: newPanX, y: newPanY });
+          setMapScale(newScale);
+          lastScale.current = newScale;
+          lastPan.current = { x: newPanX, y: newPanY };
+        }
+        lastTouchDist.current = dist;
+      } else if (touches.length === 1 && !wasPinching.current) {
+        const newPan = {
+          x: lastPan.current.x + gs.dx,
+          y: lastPan.current.y + gs.dy,
+        };
+        panRef.current = newPan;
+        setPan(newPan);
+      }
+    },
+
+    onPanResponderRelease: (_, gs) => {
+      lastTouchDist.current = null;
+      const totalMove = Math.hypot(gs.dx, gs.dy);
+
+      if (totalMove < 10 && !wasPinching.current) {
+        setHasInteracted(true);
+        // Convert screen touch to canvas coordinates
+        const rawX = (gs.moveX !== 0 || gs.moveY !== 0) ? gs.moveX : gs.x0;
+        const rawY = (gs.moveX !== 0 || gs.moveY !== 0) ? gs.moveY : gs.y0;
+        const localX = rawX - canvasOffsetRef.current.x;
+        const localY = rawY - canvasOffsetRef.current.y;
+        const canvasX = (localX - panRef.current.x) / scaleRef.current;
+        const canvasY = (localY - panRef.current.y) / scaleRef.current;
+
+        // Hit-test nodes
+        let hitId: string | null = null;
+        for (const node of nodesRef.current) {
+          const coord = coordsRef.current[node.id];
+          if (!coord) continue;
+          const r = isSelfNode(node) ? SELF_RADIUS : NODE_RADIUS;
+          if (Math.hypot(canvasX - coord.x, canvasY - coord.y) <= r * 1.2) {
+            hitId = node.id;
+            break;
+          }
+        }
+
+        const currentFocused = focusedNodeIdRef.current;
+        setFocusedNodeId(hitId ? (currentFocused === hitId ? null : hitId) : null);
+      }
+
+      lastPan.current = { ...panRef.current };
+      lastScale.current = scaleRef.current;
+      wasPinching.current = false;
+    },
+  })).current;
+
+  // ── Render edges ──────────────────────────────────────────────────────────
 
   const edgeElements = relMap.edges.map((edge, i) => {
     const from = coords[edge.fromId];
@@ -210,10 +384,10 @@ export function MeetingRelMap({ relMap, onContinue }: Props) {
     const fx = from.x + perpX * perpOff, fy = from.y + perpY * perpOff;
     const tx = to.x + perpX * perpOff,   ty = to.y + perpY * perpOff;
 
-    const fromNodeSelf = relMap.nodes.find(n => n.id === edge.fromId);
-    const toNodeSelf   = relMap.nodes.find(n => n.id === edge.toId);
-    const fromR = fromNodeSelf && isSelfNode(fromNodeSelf) ? SELF_RADIUS : NODE_RADIUS;
-    const toR   = toNodeSelf   && isSelfNode(toNodeSelf)   ? SELF_RADIUS : NODE_RADIUS;
+    const fromNode = relMap.nodes.find(n => n.id === edge.fromId);
+    const toNode   = relMap.nodes.find(n => n.id === edge.toId);
+    const fromR = fromNode && isSelfNode(fromNode) ? SELF_RADIUS : NODE_RADIUS;
+    const toR   = toNode   && isSelfNode(toNode)   ? SELF_RADIUS : NODE_RADIUS;
 
     const clipped = clipLineToNodeBoundaries(fx, fy, fromR, tx, ty, toR);
     const waypoints = routeAroundObstacles(
@@ -290,7 +464,7 @@ export function MeetingRelMap({ relMap, onContinue }: Props) {
     );
   });
 
-  // ── Full screen render ────────────────────────────────────────────────────
+  // ── Render ────────────────────────────────────────────────────────────────
 
   return (
     <SafeAreaView style={mrm.root} edges={['bottom']}>
@@ -302,24 +476,20 @@ export function MeetingRelMap({ relMap, onContinue }: Props) {
         </Text>
       </View>
 
-      <ScrollView
-        style={{ flex: 1 }}
-        contentContainerStyle={mrm.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        <View style={[mrm.canvas, { width: canvasWidth, height: canvasHeight }]}>
-          {/* Background tap to clear focus — rendered first (lowest z) */}
-          {focusedNodeId !== null && (
-            <TouchableOpacity
-              style={StyleSheet.absoluteFill}
-              onPress={() => setFocusedNodeId(null)}
-              activeOpacity={1}
-            />
-          )}
-
-          {/* SVG — visual only, no touch events */}
-          <View style={StyleSheet.absoluteFill} pointerEvents="none">
-            <Svg width={canvasWidth} height={canvasHeight}>
+      {/* Canvas area */}
+      <View style={mrm.canvasOuter}>
+        <View
+          ref={canvasViewRef}
+          style={[mrm.canvas, { width: canvasWidth, height: viewportHeight }]}
+          onLayout={() => {
+            canvasViewRef.current?.measure((_x, _y, _w, _h, pageX, pageY) => {
+              canvasOffsetRef.current = { x: pageX, y: pageY };
+            });
+          }}
+          {...mapPanResponder.panHandlers}
+        >
+          <Svg width={canvasWidth} height={viewportHeight}>
+            <G transform={`translate(${pan.x}, ${pan.y}) scale(${mapScale})`}>
               {/* Edges */}
               {edgeElements}
 
@@ -380,41 +550,70 @@ export function MeetingRelMap({ relMap, onContinue }: Props) {
                   </G>
                 );
               })}
-            </Svg>
-          </View>
-
-          {/* Absolutely-positioned node touch targets — rendered last (highest z) */}
-          {relMap.nodes.map(node => {
-            const coord = coords[node.id];
-            if (!coord) return null;
-            const self = isSelfNode(node);
-            const r = self ? SELF_RADIUS : NODE_RADIUS;
-            return (
-              <TouchableOpacity
-                key={`tap-${node.id}`}
-                style={{
-                  position: 'absolute',
-                  left: coord.x - r,
-                  top: coord.y - r,
-                  width: r * 2,
-                  height: r * 2,
-                  borderRadius: r,
-                }}
-                onPress={() => {
-                  if (focusedNodeId === node.id) setFocusedNodeId(null);
-                  else setFocusedNodeId(node.id);
-                }}
-                activeOpacity={0.7}
-              />
-            );
-          })}
+            </G>
+          </Svg>
         </View>
 
+        {/* No edges hint */}
         {relMap.edges.length === 0 && (
           <Text style={mrm.noEdgesHint}>No feel-towards data recorded.</Text>
         )}
-        <View style={{ height: 100 }} />
-      </ScrollView>
+
+        {/* Pan/zoom hint — shown when many nodes, hidden after first interaction */}
+        {relMap.nodes.length > 3 && !hasInteracted && (
+          <Text style={mrm.panHint}>pinch to zoom · drag to pan</Text>
+        )}
+      </View>
+
+      {/* Dev tuning panel */}
+      {SHOW_DEV_TUNING && (
+        <View style={devStyles.panel}>
+          <Text style={devStyles.panelTitle}>⚙ Layout Tuning</Text>
+
+          <DevSlider label="Repulsion" value={devRepulsion}
+            min={2000} max={40000} step={500}
+            onChange={setDevRepulsion} onRelease={() => setDevKey(k => k + 1)} />
+
+          <DevSlider label="Centering" value={devCentering}
+            min={0.001} max={0.02} step={0.001}
+            onChange={setDevCentering} onRelease={() => setDevKey(k => k + 1)} />
+
+          <DevSlider label="Self rest (×height)" value={devSelfRest}
+            min={0.1} max={0.8} step={0.05}
+            onChange={setDevSelfRest} onRelease={() => setDevKey(k => k + 1)} />
+
+          <DevSlider label="Self stiffness" value={devSelfStiff}
+            min={0.005} max={0.08} step={0.005}
+            onChange={setDevSelfStiff} onRelease={() => setDevKey(k => k + 1)} />
+
+          <DevSlider label="Edge rest" value={devEdgeRest}
+            min={50} max={300} step={10}
+            onChange={setDevEdgeRest} onRelease={() => setDevKey(k => k + 1)} />
+
+          <DevSlider label="Edge stiffness" value={devEdgeStiff}
+            min={0.01} max={0.15} step={0.01}
+            onChange={setDevEdgeStiff} onRelease={() => setDevKey(k => k + 1)} />
+
+          <DevSlider label="Node radius +" value={devNodeRadius}
+            min={10} max={80} step={5}
+            onChange={setDevNodeRadius} onRelease={() => setDevKey(k => k + 1)} />
+
+          <DevSlider label="Self radius +" value={devSelfRadius}
+            min={10} max={80} step={5}
+            onChange={setDevSelfRadius} onRelease={() => setDevKey(k => k + 1)} />
+
+          <DevSlider label="Iterations" value={devIterations}
+            min={100} max={1000} step={50}
+            onChange={setDevIterations} onRelease={() => setDevKey(k => k + 1)} />
+
+          <Text style={devStyles.readout}>
+            {`repulsion: ${devRepulsion} | centering: ${devCentering.toFixed(3)}\n` +
+             `selfRest: ${(devSelfRest * canvasHeight).toFixed(0)}px | selfStiff: ${devSelfStiff}\n` +
+             `edgeRest: ${devEdgeRest} | edgeStiff: ${devEdgeStiff}\n` +
+             `nodeR+: ${devNodeRadius} | selfR+: ${devSelfRadius} | iter: ${devIterations}`}
+          </Text>
+        </View>
+      )}
 
       {/* Continue button */}
       <View style={mrm.footer}>
@@ -451,13 +650,13 @@ const mrm = StyleSheet.create({
     color: 'rgba(255,255,255,0.6)',
     lineHeight: 21,
   },
-  scrollContent: {
-    paddingHorizontal: 16,
-    paddingTop: 20,
+  canvasOuter: {
+    flex: 1,
     alignItems: 'center',
+    justifyContent: 'center',
+    paddingTop: 12,
   },
   canvas: {
-    position: 'relative',
     backgroundColor: 'rgba(255,255,255,0.02)',
     borderRadius: 16,
     borderWidth: 1,
@@ -468,7 +667,14 @@ const mrm = StyleSheet.create({
     fontSize: 13,
     color: 'rgba(255,255,255,0.3)',
     textAlign: 'center',
-    marginTop: 16,
+    marginTop: 12,
+    fontStyle: 'italic',
+  },
+  panHint: {
+    fontSize: 11,
+    color: 'rgba(255,255,255,0.25)',
+    textAlign: 'center',
+    marginTop: 8,
     fontStyle: 'italic',
   },
   footer: {
@@ -489,5 +695,60 @@ const mrm = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
     color: '#FFFFFF',
+  },
+});
+
+const devStyles = StyleSheet.create({
+  panel: {
+    marginHorizontal: 16,
+    marginTop: 8,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    borderRadius: 12,
+    padding: 14,
+    gap: 6,
+  },
+  panelTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#B88A00',
+    marginBottom: 6,
+  },
+  sliderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  sliderLabel: {
+    fontSize: 11,
+    color: 'rgba(255,255,255,0.6)',
+    width: 110,
+  },
+  stepBtn: {
+    width: 28,
+    height: 28,
+    borderRadius: 6,
+    backgroundColor: '#2A2927',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  stepBtnText: {
+    fontSize: 16,
+    color: '#FFFFFF',
+    fontWeight: '700',
+    lineHeight: 20,
+  },
+  sliderValue: {
+    fontSize: 11,
+    color: '#FFFFFF',
+    fontWeight: '600',
+    width: 48,
+    textAlign: 'center',
+  },
+  readout: {
+    fontSize: 10,
+    color: 'rgba(255,255,255,0.5)',
+    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
+    marginTop: 8,
+    lineHeight: 16,
   },
 });

@@ -82,7 +82,7 @@ export function runLayout(
 
   const initialTemperature =
     options.initialTemperature ?? Math.min(width, height) / 10;
-  const convergenceThreshold = nodes.length * 0.5;
+  const convergenceThreshold = nodes.length * 0.1;
 
   // ── Internal working state ────────────────────────────────────────────────
   interface NS {
@@ -287,11 +287,11 @@ export function routeAroundObstacles(
     const ox = obs.x - x1;
     const oy = obs.y - y1;
     const t = (ox * ux + oy * uy) / len;
-    if (t <= 0.05 || t >= 0.95) continue;
+    if (t <= 0.08 || t >= 0.92) continue;
     const px = x1 + ux * t * len;
     const py = y1 + uy * t * len;
     const perpDist = Math.hypot(obs.x - px, obs.y - py);
-    if (perpDist < obs.radius + padding * 0.5) {
+    if (perpDist < obs.radius + padding * 0.8) {
       intersecting.push({ obs, t });
     }
   }
@@ -320,4 +320,99 @@ export function routeAroundObstacles(
       y: obs.y + perpY * side * push,
     };
   });
+}
+
+// ─── Convex hull + SVG blob helpers ──────────────────────────────────────────
+
+/**
+ * Computes the convex hull of a set of 2D points using Jarvis march.
+ * Returns points in counter-clockwise order.
+ * Returns all points if count <= 3 (already a hull).
+ */
+export function convexHull(points: Array<{ x: number; y: number }>): Array<{ x: number; y: number }> {
+  if (points.length <= 3) return [...points];
+
+  // Find leftmost point
+  let start = 0;
+  for (let i = 1; i < points.length; i++) {
+    if (points[i].x < points[start].x) start = i;
+  }
+
+  const hull: Array<{ x: number; y: number }> = [];
+  let current = start;
+
+  do {
+    hull.push(points[current]);
+    let next = (current + 1) % points.length;
+    for (let i = 0; i < points.length; i++) {
+      // Cross product to find most counter-clockwise point
+      const cross =
+        (points[next].x - points[current].x) * (points[i].y - points[current].y) -
+        (points[next].y - points[current].y) * (points[i].x - points[current].x);
+      if (cross < 0) next = i;
+    }
+    current = next;
+  } while (current !== start && hull.length <= points.length);
+
+  return hull;
+}
+
+/**
+ * Expands a convex hull outward by `padding` pixels from the centroid.
+ * Used to give the group hull visual breathing room around its nodes.
+ */
+export function expandHull(
+  hull: Array<{ x: number; y: number }>,
+  padding: number,
+): Array<{ x: number; y: number }> {
+  if (hull.length === 0) return hull;
+  const cx = hull.reduce((s, p) => s + p.x, 0) / hull.length;
+  const cy = hull.reduce((s, p) => s + p.y, 0) / hull.length;
+  return hull.map(p => {
+    const dx = p.x - cx;
+    const dy = p.y - cy;
+    const dist = Math.hypot(dx, dy) || 1;
+    return {
+      x: p.x + (dx / dist) * padding,
+      y: p.y + (dy / dist) * padding,
+    };
+  });
+}
+
+/**
+ * Converts a hull polygon to a smooth SVG path using cubic bezier curves.
+ * tension: 0 = straight lines, 0.3–0.5 = natural smooth blob.
+ */
+export function hullToSmoothPath(
+  hull: Array<{ x: number; y: number }>,
+  tension: number = 0.4,
+): string {
+  if (hull.length < 2) return '';
+  if (hull.length === 2) {
+    return `M ${hull[0].x},${hull[0].y} L ${hull[1].x},${hull[1].y} Z`;
+  }
+
+  const n = hull.length;
+  const pts = [...hull, hull[0], hull[1]]; // wrap around
+
+  let d = `M ${hull[0].x.toFixed(1)},${hull[0].y.toFixed(1)}`;
+
+  for (let i = 0; i < n; i++) {
+    const p0 = pts[i];
+    const p1 = pts[i + 1];
+    const p2 = pts[(i + 2) % n];
+
+    // Catmull-Rom → cubic bezier conversion
+    const cp1x = p1.x - (p2.x - p0.x) * tension / 2;
+    const cp1y = p1.y - (p2.y - p0.y) * tension / 2;
+
+    const p0b = pts[i > 0 ? i - 1 : n - 1] ?? p0;
+    const cp2x = p1.x + (p2.x - p0b.x) * tension / 2;
+    const cp2y = p1.y + (p2.y - p0b.y) * tension / 2;
+
+    const next = pts[i + 1];
+    d += ` C ${cp1x.toFixed(1)},${cp1y.toFixed(1)} ${cp2x.toFixed(1)},${cp2y.toFixed(1)} ${next.x.toFixed(1)},${next.y.toFixed(1)}`;
+  }
+
+  return d + ' Z';
 }

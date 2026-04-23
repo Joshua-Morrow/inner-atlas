@@ -22,7 +22,7 @@ interface Props {
   visible: boolean;
   onClose: () => void;
   onBurdenToggled: () => void;
-  viewMode: 'atlas' | 'feelings';
+  viewMode: 'atlas' | 'feelings' | 'combined';
 }
 
 const TYPE_LABELS: Record<string, string> = {

@@ -2,6 +2,30 @@
 
 ---
 
+## Session: 2026-04-23 — Parts Map: Group Hulls, Hit Area Fix, Line Quality, Combined Mode
+
+**Files changed:** `lib/graph-layout.ts`, `components/map/PartsMapCanvas.tsx`, `app/(tabs)/explore.tsx`, `components/map/NodeDetailSheet.tsx`
+
+- `lib/graph-layout.ts`: Added `convexHull` (Jarvis march gift-wrapping), `expandHull` (centroid-push), and `hullToSmoothPath` (Catmull-Rom→cubic bezier smooth blob) exported helpers. Fixed `routeAroundObstacles`: intersection threshold tightened from `padding * 0.5` → `padding * 0.8`; endpoint exclusion zone widened from `0.05/0.95` → `0.08/0.92` for better near-endpoint obstacle detection.
+- `PartsMapCanvas.tsx`: Group hull rendering — alliances get soft green blob, activation chains get soft gold blob (convex hull of 8-point node approximations, expanded 18px, smooth SVG path); hulls prepended to edges array so they render beneath edges and nodes. Alliance edge lines removed (hull replaces visual); chain lines + arrowheads remain. Hit area fix: replaced old `visibleCenterY/halfHeight` formula with explicit `hitCenterY/hitRadiusY` per type; long-press threshold `0.85→0.9`; `DEV_SHOW_HIT_AREAS` constant + red dashed Ellipse overlay for debugging; `[HitTest]` console.log on tap. Force layout: activation_chain gets sequential pairs at restLength 85/stiffness 0.14; alliance all-pairs at 90/0.12; polarization 240/0.04; protective 140/0.06. `computeInitialLayout` seeds both alliance and activation_chain groups near each other. Combined view mode: `structuralBaseOpacity` 0.5 (was binary atlas/feelings); feeling edges shown in combined mode at 0.65 opacity; `showFeelingEdges` replaces `viewMode === 'feelings'` check. `buildEdgePath` upgraded to cubic bezier (C command) for 0-waypoint and 1-waypoint cases.
+- `explore.tsx`: `MapViewMode` extended to `'atlas' | 'feelings' | 'combined'`; Combined toggle button added. `prevRelIdsRef` tracks relationship IDs; `loadData` auto-resets layout positions when a new alliance or activation_chain relationship is detected. `REL_LEGEND` updated with `hull` flag + new colors (alliance `#4A9B73`, chain `#C8A44A`); legend renders hull swatches (rounded rect with `legendHullSwatch` style) for hull items, three-way conditional rendering for combined mode showing both structural and feeling entries.
+- `NodeDetailSheet.tsx`: `viewMode` prop type extended to include `'combined'`.
+- TypeScript: Clean — only pre-existing `trailhead/session.tsx:623` error.
+
+---
+
+## Session: 2026-04-23 — Round 3 Fixes: RelMap Pan/Zoom, Self Routing, Node Sizes, Relationship Display
+
+**Files changed:** `components/ui/MeetingRelMap.tsx`, `components/map/PartsMapCanvas.tsx`, `lib/map-nodes.ts`, `app/relationships.tsx`
+
+- `MeetingRelMap.tsx`: Full pan/zoom implementation using PanResponder (same pattern as PartsMapCanvas). Canvas sized to `SCREEN_HEIGHT - 220`; expands by 110px per node beyond 4. Layout tuned for compact (≤4 nodes): repulsionStrength 14000, centeringForce 0.004; spread (>4): 9000 / 0.007. Node layout radii: Self +20 (was +8), others +26 (was +16). Replaced ScrollView+TouchableOpacity overlays with PanResponder tap detection using `canvasOffsetRef` (measured via `View.measure` on layout). "pinch to zoom · drag to pan" hint shown when nodeCount > 3, hidden after first interaction.
+- `PartsMapCanvas.tsx`: Self routing fix — obstacle radius inflated by +20 for Self (type 'self' or id '__self__'); `routeAroundObstacles` padding increased 10→16 for both structural and feeling edges; `pushControlPointAwayFromSelf` helper added — pushes bezier control point away from Self when it falls within clearance radius (Self visual + 28px). All three fixes together prevent edges from visually passing through Self node.
+- `lib/map-nodes.ts`: NODE_SIZES reduced 25% across all types (self 44→33, manager/firefighter 32→24, exile 30→23, freed/unknown 28→21, shadowed 26→20). Intensity formula unchanged — now starts from smaller base giving tighter overall range.
+- `app/relationships.tsx`: Protective and activation_chain relationships now shown in Structures tab. Added `protectives` and `activationChains` state arrays; updated type defs; added "Protective" and "Activation Chains" sections with appropriate icons (shield-checkmark, git-network) and member display (protector→protected for protective; ordered chip row for chains).
+- TypeScript: Clean — only pre-existing `trailhead/session.tsx:623` error.
+
+---
+
 ## Session: 2026-04-22 — Graph Layout Round 2: Edge Routing, SVG RelMap, New Types, Hit-Area Fix
 
 **Files changed:** `lib/graph-layout.ts`, `components/map/PartsMapCanvas.tsx`, `components/map/PartsMapNode.tsx`, `components/ui/MeetingRelMap.tsx`, `app/new-relationship.tsx`, `lib/database.ts`, `app/(tabs)/explore.tsx`

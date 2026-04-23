@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Dimensions, PanResponder, StyleSheet, View } from 'react-native';
-import Svg, { Circle, G, Path, Rect, Text as SvgText } from 'react-native-svg';
+import Svg, { Circle, Ellipse, G, Path, Rect, Text as SvgText } from 'react-native-svg';
 
 import { FeelingEdge, MapPart, MapRelationship, savePartMapPosition } from '@/lib/database';
 import {
@@ -8,6 +8,9 @@ import {
   LayoutNode,
   Obstacle,
   clipLineToNodeBoundaries,
+  convexHull,
+  expandHull,
+  hullToSmoothPath,
   routeAroundObstacles,
   runLayout,
 } from '@/lib/graph-layout';
@@ -17,6 +20,13 @@ import PartsMapNode from './PartsMapNode';
 const SCREEN = Dimensions.get('window');
 const CANVAS_CENTER_X = SCREEN.width / 2;
 const CANVAS_CENTER_Y = SCREEN.height / 2;
+
+const DEV_SHOW_HIT_AREAS = false; // flip true to debug hit areas on device
+
+const HULL_COLORS = {
+  alliance:         { fill: '#4A9B73', stroke: '#3A8A63' },
+  activation_chain: { fill: '#C8A44A', stroke: '#B8943A' },
+} as const;
 
 // ─── Seed layout (radial) ─────────────────────────────────────────────────────
 
@@ -37,7 +47,9 @@ function computeInitialLayout(
   const placed = new Set<string>(selfPart ? [selfPart.id] : []);
   const groups: string[][] = [];
 
-  for (const rel of relationships.filter(r => r.type === 'alliance')) {
+  for (const rel of relationships.filter(r =>
+    r.type === 'alliance' || r.type === 'activation_chain'
+  )) {
     const members = rel.member_part_ids.filter(id => parts.some(p => p.id === id));
     if (members.length > 1) { groups.push(members); members.forEach(id => placed.add(id)); }
   }
@@ -116,16 +128,49 @@ function computeForceLayout(
 
   const layoutEdges: LayoutEdge[] = [];
   for (const rel of relationships) {
-    for (let i = 0; i < rel.member_part_ids.length; i++) {
-      for (let j = i + 1; j < rel.member_part_ids.length; j++) {
-        const fromId = rel.member_part_ids[i];
-        const toId   = rel.member_part_ids[j];
-        if (rel.type === 'alliance') {
-          layoutEdges.push({ fromId, toId, restLength: 110, stiffness: 0.08 });
-        } else if (rel.type === 'polarization') {
-          layoutEdges.push({ fromId, toId, restLength: 220, stiffness: 0.04 });
-        } else {
-          layoutEdges.push({ fromId, toId, restLength: 140, stiffness: 0.06 });
+    if (rel.type === 'activation_chain') {
+      // Sequential pairs only — strong attraction to keep chain tight
+      for (let i = 0; i < rel.member_part_ids.length - 1; i++) {
+        layoutEdges.push({
+          fromId: rel.member_part_ids[i],
+          toId: rel.member_part_ids[i + 1],
+          restLength: 85,
+          stiffness: 0.14,
+        });
+      }
+    } else if (rel.type === 'alliance') {
+      // All pairs — attract strongly to form a visible cluster
+      for (let i = 0; i < rel.member_part_ids.length; i++) {
+        for (let j = i + 1; j < rel.member_part_ids.length; j++) {
+          layoutEdges.push({
+            fromId: rel.member_part_ids[i],
+            toId: rel.member_part_ids[j],
+            restLength: 90,
+            stiffness: 0.12,
+          });
+        }
+      }
+    } else if (rel.type === 'polarization') {
+      for (let i = 0; i < rel.member_part_ids.length; i++) {
+        for (let j = i + 1; j < rel.member_part_ids.length; j++) {
+          layoutEdges.push({
+            fromId: rel.member_part_ids[i],
+            toId: rel.member_part_ids[j],
+            restLength: 240,
+            stiffness: 0.04,
+          });
+        }
+      }
+    } else {
+      // protective, other
+      for (let i = 0; i < rel.member_part_ids.length; i++) {
+        for (let j = i + 1; j < rel.member_part_ids.length; j++) {
+          layoutEdges.push({
+            fromId: rel.member_part_ids[i],
+            toId: rel.member_part_ids[j],
+            restLength: 140,
+            stiffness: 0.06,
+          });
         }
       }
     }
@@ -163,6 +208,19 @@ function aabbOverlap(
   );
 }
 
+function pushControlPointAwayFromSelf(
+  cpx: number, cpy: number,
+  selfX: number, selfY: number,
+  clearance: number,
+): { cpx: number; cpy: number } {
+  const dx = cpx - selfX;
+  const dy = cpy - selfY;
+  const dist = Math.hypot(dx, dy) || 1;
+  if (dist >= clearance) return { cpx, cpy };
+  const push = clearance - dist;
+  return { cpx: cpx + (dx / dist) * push, cpy: cpy + (dy / dist) * push };
+}
+
 function buildEdgePath(
   x1: number, y1: number,
   x2: number, y2: number,
@@ -170,12 +228,27 @@ function buildEdgePath(
   cpx: number, cpy: number,
 ): string {
   if (waypoints.length === 0) {
-    return `M ${x1.toFixed(1)},${y1.toFixed(1)} Q ${cpx.toFixed(1)},${cpy.toFixed(1)} ${x2.toFixed(1)},${y2.toFixed(1)}`;
+    // Cubic bezier — two control points for more natural curve
+    const mx = (x1 + x2) / 2;
+    const my = (y1 + y2) / 2;
+    const dx = cpx - mx;
+    const dy = cpy - my;
+    const cp1x = x1 * 0.5 + mx * 0.5 + dx * 0.6;
+    const cp1y = y1 * 0.5 + my * 0.5 + dy * 0.6;
+    const cp2x = x2 * 0.5 + mx * 0.5 + dx * 0.6;
+    const cp2y = y2 * 0.5 + my * 0.5 + dy * 0.6;
+    return `M ${x1.toFixed(1)},${y1.toFixed(1)} C ${cp1x.toFixed(1)},${cp1y.toFixed(1)} ${cp2x.toFixed(1)},${cp2y.toFixed(1)} ${x2.toFixed(1)},${y2.toFixed(1)}`;
   }
   if (waypoints.length === 1) {
     const wp = waypoints[0];
-    return `M ${x1.toFixed(1)},${y1.toFixed(1)} Q ${wp.x.toFixed(1)},${wp.y.toFixed(1)} ${x2.toFixed(1)},${y2.toFixed(1)}`;
+    // Cubic through waypoint
+    const cp1x = x1 * 0.3 + wp.x * 0.7;
+    const cp1y = y1 * 0.3 + wp.y * 0.7;
+    const cp2x = x2 * 0.3 + wp.x * 0.7;
+    const cp2y = y2 * 0.3 + wp.y * 0.7;
+    return `M ${x1.toFixed(1)},${y1.toFixed(1)} C ${cp1x.toFixed(1)},${cp1y.toFixed(1)} ${cp2x.toFixed(1)},${cp2y.toFixed(1)} ${x2.toFixed(1)},${y2.toFixed(1)}`;
   }
+  // 2 waypoints — S-curve
   const mx = (waypoints[0].x + waypoints[1].x) / 2;
   const my = (waypoints[0].y + waypoints[1].y) / 2;
   return [
@@ -198,7 +271,7 @@ interface Props {
   parts: MapPart[];
   relationships: MapRelationship[];
   feelingEdges: FeelingEdge[];
-  viewMode: 'atlas' | 'feelings';
+  viewMode: 'atlas' | 'feelings' | 'combined';
   selectedPartId: string | null;
   focusedPartId?: string | null;
   onPartPress: (part: MapPart | null) => void;
@@ -319,14 +392,16 @@ export default function PartsMapCanvas({
             const pos = nodePositions.current.get(part.id);
             if (!pos) continue;
             const size = getNodeSize(part.type, part.intensity ?? 5);
-            const topY = pos.y - size;
-            const botY = pos.y + nodeBottomY(part.type, size);
-            const visibleCenterY = (topY + botY) / 2;
-            const halfHeight = (botY - topY) / 2;
+            const hitCenterY = part.type === 'firefighter'
+              ? pos.y + size * 0.15
+              : pos.y;
+            const hitRadiusY = part.type === 'firefighter'
+              ? size * 1.15
+              : size;
             const ddx = cx - pos.x;
-            const ddy = cy - visibleCenterY;
-            const normalized = Math.hypot(ddx / size, ddy / halfHeight);
-            if (normalized < 0.85 && normalized < minNorm) { minNorm = normalized; hit = part; }
+            const ddy = cy - hitCenterY;
+            const normalized = Math.hypot(ddx / size, ddy / hitRadiusY);
+            if (normalized < 0.9 && normalized < minNorm) { minNorm = normalized; hit = part; }
           }
           if (hit) {
             draggingPartIdRef.current = hit.id;
@@ -424,14 +499,25 @@ export default function PartsMapCanvas({
             const pos = nodePositions.current.get(part.id);
             if (!pos) continue;
             const size = getNodeSize(part.type, part.intensity ?? 5);
-            const topY = pos.y - size;
-            const botY = pos.y + nodeBottomY(part.type, size);
-            const visibleCenterY = (topY + botY) / 2;
-            const halfHeight = (botY - topY) / 2;
+            const hitCenterY = part.type === 'firefighter'
+              ? pos.y + size * 0.15
+              : pos.y;
+            const hitRadiusY = part.type === 'firefighter'
+              ? size * 1.15
+              : size;
             const ddx = canvasX - pos.x;
-            const ddy = canvasY - visibleCenterY;
-            const normalized = Math.hypot(ddx / size, ddy / halfHeight);
+            const ddy = canvasY - hitCenterY;
+            const normalized = Math.hypot(ddx / size, ddy / hitRadiusY);
             if (normalized < 1.0 && normalized < closestNorm) { closestNorm = normalized; closest = part; }
+          }
+
+          if (__DEV__) {
+            console.log('[HitTest]', {
+              canvasX: canvasX.toFixed(1),
+              canvasY: canvasY.toFixed(1),
+              closest: closest?.display_name ?? 'none',
+              closestNorm: closestNorm.toFixed(3),
+            });
           }
 
           if (closest) onPartPressRef.current(closest);
@@ -448,18 +534,27 @@ export default function PartsMapCanvas({
   // ── Edges: structural + feeling + focus dimming + label collision avoidance ───
 
   const edges = useMemo(() => {
-    // Build obstacle list for routing
+    // Build obstacle list for routing — Self gets inflated radius for routing clearance
     const obstacles: Obstacle[] = [];
     for (const part of parts) {
       const pos = nodePositions.current.get(part.id);
       if (!pos) continue;
+      const visualR = getNodeSize(part.type, part.intensity ?? 5);
+      const isSelf = part.type === 'self' || part.id === '__self__';
       obstacles.push({
         id: part.id,
         x: pos.x,
         y: pos.y,
-        radius: getNodeSize(part.type, part.intensity ?? 5),
+        radius: isSelf ? visualR + 20 : visualR,
       });
     }
+
+    // Self position for control-point push
+    const selfPartForCP = parts.find(p => p.type === 'self' || p.id === '__self__');
+    const selfPosForCP = selfPartForCP ? nodePositions.current.get(selfPartForCP.id) : null;
+    const selfClearance = selfPartForCP
+      ? getNodeSize(selfPartForCP.type, selfPartForCP.intensity ?? 5) + 28
+      : 0;
 
     // Build edge specs — sequential pairs for activation_chain, all-pairs for others
     const specs: EdgeSpec[] = [];
@@ -495,8 +590,80 @@ export default function PartsMapCanvas({
     }
 
     const PARALLEL_OFFSET = 9;
-    const structuralBaseOpacity = viewMode === 'atlas' ? 0.8 : 0.25;
+    const structuralBaseOpacity =
+      viewMode === 'atlas'    ? 0.8 :
+      viewMode === 'combined' ? 0.5 :
+                                0.25;
     const elements: React.ReactElement[] = [];
+
+    // ── Group hulls — rendered beneath edges and nodes ───────────────────────
+    const hullElements: React.ReactElement[] = [];
+
+    for (const rel of relationships) {
+      if (rel.type !== 'alliance' && rel.type !== 'activation_chain') continue;
+
+      const memberPositions = rel.member_part_ids
+        .map(id => {
+          const pos = nodePositions.current.get(id);
+          if (!pos) return null;
+          const part = parts.find(p => p.id === id);
+          const r = part ? getNodeSize(part.type, part.intensity ?? 5) : 22;
+          return Array.from({ length: 8 }, (_, i) => {
+            const angle = (i / 8) * Math.PI * 2;
+            return { x: pos.x + Math.cos(angle) * r, y: pos.y + Math.sin(angle) * r };
+          });
+        })
+        .filter(Boolean)
+        .flat() as Array<{ x: number; y: number }>;
+
+      if (memberPositions.length < 3) continue;
+
+      const hull = convexHull(memberPositions);
+      const expanded = expandHull(hull, 18);
+      const pathD = hullToSmoothPath(expanded, 0.4);
+      if (!pathD) continue;
+
+      const colors = HULL_COLORS[rel.type as keyof typeof HULL_COLORS];
+      if (!colors) continue;
+
+      let hullOpacity = viewMode === 'atlas' ? 1 : 0.25;
+      if (focusedPartId) {
+        const anyMemberFocused = rel.member_part_ids.some(
+          id => id === focusedPartId || connectedPartIds?.has(id),
+        );
+        hullOpacity = anyMemberFocused ? hullOpacity : 0.15;
+      }
+
+      hullElements.push(
+        <G key={`hull-${rel.id}`} opacity={hullOpacity}>
+          {/* Glow effect — slightly larger, more transparent */}
+          <Path
+            d={pathD}
+            fill="none"
+            stroke={colors.stroke}
+            strokeWidth={6}
+            strokeOpacity={0.12}
+            strokeLinejoin="round"
+          />
+          {/* Fill */}
+          <Path
+            d={pathD}
+            fill={colors.fill}
+            fillOpacity={0.07}
+            stroke="none"
+          />
+          {/* Stroke */}
+          <Path
+            d={pathD}
+            fill="none"
+            stroke={colors.stroke}
+            strokeWidth={2}
+            strokeOpacity={0.45}
+            strokeLinejoin="round"
+          />
+        </G>,
+      );
+    }
 
     // ── Structural edges ──────────────────────────────────────────────────────
     pairGroups.forEach((group) => {
@@ -546,16 +713,21 @@ export default function PartsMapCanvas({
 
         const waypoints = routeAroundObstacles(
           clipped.x1, clipped.y1, clipped.x2, clipped.y2,
-          spec.fromId, spec.toId, obstacles, 10,
+          spec.fromId, spec.toId, obstacles, 16,
         );
 
         const mx = (clipped.x1 + clipped.x2) / 2;
         const my = (clipped.y1 + clipped.y2) / 2;
         const curveOff = Math.min(len * 0.18, 35);
-        const cpx = mx + perpX * curveOff;
-        const cpy = my + perpY * curveOff;
+        let { cpx, cpy } = { cpx: mx + perpX * curveOff, cpy: my + perpY * curveOff };
+        if (selfPosForCP && selfClearance > 0) {
+          ({ cpx, cpy } = pushControlPointAwayFromSelf(cpx, cpy, selfPosForCP.x, selfPosForCP.y, selfClearance));
+        }
 
         const pathD = buildEdgePath(clipped.x1, clipped.y1, clipped.x2, clipped.y2, waypoints, cpx, cpy);
+
+        // Alliance edges: hull communicates the group — skip line rendering
+        if (isAlliance) return;
 
         elements.push(
           <Path
@@ -600,8 +772,9 @@ export default function PartsMapCanvas({
       });
     });
 
-    // ── Feeling edges (feelings mode only) ────────────────────────────────────
-    if (viewMode === 'feelings') {
+    // ── Feeling edges (feelings + combined modes) ─────────────────────────────
+    const showFeelingEdges = viewMode === 'feelings' || viewMode === 'combined';
+    if (showFeelingEdges) {
       const edgeColor = '#9B7A4A';
       const arrowR = 4.5;
       const BIDIR_OFFSET = 7;
@@ -623,7 +796,9 @@ export default function PartsMapCanvas({
           !focusedPartId ||
           fe.from_part_id === focusedPartId ||
           fe.to_part_id === focusedPartId;
-        const edgeOpacity = edgeConnected ? 0.85 : 0.06;
+        const edgeOpacity = edgeConnected
+          ? (viewMode === 'combined' ? 0.65 : 0.85)
+          : 0.06;
 
         const reverseExists = feelingEdges.some(
           e => e.from_part_id === fe.to_part_id && e.to_part_id === fe.from_part_id,
@@ -649,15 +824,17 @@ export default function PartsMapCanvas({
 
         const waypointsFE = routeAroundObstacles(
           clippedFE.x1, clippedFE.y1, clippedFE.x2, clippedFE.y2,
-          fe.from_part_id, fe.to_part_id, obstacles, 10,
+          fe.from_part_id, fe.to_part_id, obstacles, 16,
         );
 
         const mxFE = (clippedFE.x1 + clippedFE.x2) / 2;
         const myFE = (clippedFE.y1 + clippedFE.y2) / 2;
         const curveOff = Math.min(len * 0.15, 28);
         const curveMult = reverseExists ? 1.5 : 1;
-        const cpx = mxFE + perpX * curveOff * curveMult;
-        const cpy = myFE + perpY * curveOff * curveMult;
+        let { cpx, cpy } = { cpx: mxFE + perpX * curveOff * curveMult, cpy: myFE + perpY * curveOff * curveMult };
+        if (selfPosForCP && selfClearance > 0) {
+          ({ cpx, cpy } = pushControlPointAwayFromSelf(cpx, cpy, selfPosForCP.x, selfPosForCP.y, selfClearance));
+        }
 
         const pathD = buildEdgePath(clippedFE.x1, clippedFE.y1, clippedFE.x2, clippedFE.y2, waypointsFE, cpx, cpy);
 
@@ -770,7 +947,7 @@ export default function PartsMapCanvas({
       }
     }
 
-    return elements;
+    return [...hullElements, ...elements];
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [relationships, feelingEdges, viewMode, dragTick, focusedPartId, connectedPartIds, parts]);
 
@@ -800,6 +977,27 @@ export default function PartsMapCanvas({
                 isSelected={selectedPartId === part.id}
                 isDragging={draggingPartId === part.id}
                 dimmed={dimmed}
+              />
+            );
+          })}
+          {DEV_SHOW_HIT_AREAS && parts.map(part => {
+            const pos = nodePositions.current.get(part.id);
+            if (!pos) return null;
+            const size = getNodeSize(part.type, part.intensity ?? 5);
+            const hitCenterY = part.type === 'firefighter' ? pos.y + size * 0.15 : pos.y;
+            const hitRadiusY = part.type === 'firefighter' ? size * 1.15 : size;
+            return (
+              <Ellipse
+                key={`hit-${part.id}`}
+                cx={pos.x}
+                cy={hitCenterY}
+                rx={size}
+                ry={hitRadiusY}
+                fill="none"
+                stroke="#FF0000"
+                strokeWidth={1.5}
+                strokeOpacity={0.7}
+                strokeDasharray="4,3"
               />
             );
           })}

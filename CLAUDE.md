@@ -24,6 +24,12 @@ Last completed:
 
 **What's actually built so far (as of 2026-04-22):**
 
+**Phase 2 — 2026-04-23 Round 3 Fixes: RelMap Pan/Zoom, Self Routing, Node Sizes, Relationship Display:**
+- `MeetingRelMap.tsx`: PanResponder pan/zoom added (same pattern as PartsMapCanvas). Canvas height = `SCREEN_HEIGHT - 220`; expands +110px per node beyond 4. Compact (≤4 nodes): repulsion 14000, centering 0.004; spread (>4): 9000 / 0.007. Layout radii: Self +20, others +26. Tap detection via `canvasOffsetRef.measure` + PanResponder release hit-test. Hint text shown until first interaction.
+- `PartsMapCanvas.tsx`: Self obstacle radius inflated +20; routing padding 10→16; `pushControlPointAwayFromSelf` helper prevents bezier control points from clipping through Self (clearance = Self visual + 28px).
+- `lib/map-nodes.ts`: All NODE_SIZES reduced 25% (self 33, manager/firefighter 24, exile 23, freed/unknown 21, shadowed 20).
+- `app/relationships.tsx`: Protective and activation_chain relationships now appear in Structures tab with dedicated sections and icons.
+
 **Phase 2 — 2026-04-22 Graph Layout Round 2 — Edge Routing, SVG RelMap, New Types, Hit-Area Fix:**
 - `lib/graph-layout.ts`: `clipLineToNodeBoundaries` + `routeAroundObstacles` + `Obstacle` interface added. Edges clip to node surfaces and route around obstacle nodes (up to 2 waypoints, SVG bezier path).
 - `PartsMapCanvas.tsx`: All edges clipped + routed. `buildEdgePath` builds 0/1/2-waypoint SVG paths. Activation chain → sequential pairs only (DB order-preserved). New types `protective` (solid #5B7FB8) and `activation_chain` (dashed #B88A00 + arrowhead). Hit-area rewritten as ellipse matching visible node extent (nodeBottomY); `+28` hack removed; console.log removed.

@@ -8,7 +8,7 @@
  * File is `explore.tsx` (the "Map" tab).
  */
 
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { Alert, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useLocalSearchParams } from 'expo-router';
@@ -50,13 +50,13 @@ const NODE_LEGEND = [
 ];
 
 const REL_LEGEND = [
-  { color: '#2D6A4F', dash: false, label: 'Alliance' },
-  { color: '#991B1B', dash: true,  label: 'Polarization' },
-  { color: '#5B7FB8', dash: false, label: 'Protective' },
-  { color: '#B88A00', dash: true,  label: 'Activation chain' },
+  { color: '#4A9B73', dash: false, label: 'Alliance (group)',  hull: true  },
+  { color: '#991B1B', dash: true,  label: 'Polarization',      hull: false },
+  { color: '#5B7FB8', dash: false, label: 'Protective',        hull: false },
+  { color: '#C8A44A', dash: true,  label: 'Activation chain',  hull: true  },
 ];
 
-type MapViewMode = 'atlas' | 'feelings';
+type MapViewMode = 'atlas' | 'feelings' | 'combined';
 
 export default function MapScreen() {
   const { mode } = useLocalSearchParams<{ mode?: string }>();
@@ -69,6 +69,7 @@ export default function MapScreen() {
   const [hasCustomPositions, setHasCustomPositions] = useState(false);
   const [layoutResetKey, setLayoutResetKey] = useState(0);
   const [focusedPartId, setFocusedPartId] = useState<string | null>(null);
+  const prevRelIdsRef = useRef<Set<string>>(new Set());
 
   const buildDisplayParts = useCallback((dbParts: MapPart[]): MapPart[] => {
     const hasSelf = dbParts.some(p => p.type === 'self');
@@ -88,6 +89,17 @@ export default function MapScreen() {
       setParts(buildDisplayParts(p));
       setRelations(r);
       setFeelingEdges(fe);
+
+      // Auto-reset layout if a new alliance or activation_chain was added
+      const newGroupRels = r.filter(rel =>
+        rel.type === 'alliance' || rel.type === 'activation_chain',
+      );
+      const hasNew = newGroupRels.some(rel => !prevRelIdsRef.current.has(rel.id));
+      if (hasNew) {
+        await clearAllMapPositions();
+        setLayoutResetKey(k => k + 1);
+      }
+      prevRelIdsRef.current = new Set(r.map(rel => rel.id));
     } catch (e) {
       console.error('[MapScreen] loadData:', e);
     }
@@ -166,6 +178,15 @@ export default function MapScreen() {
                 Feelings
               </Text>
             </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.toggleBtn, viewMode === 'combined' && styles.toggleBtnActive]}
+              onPress={() => setViewMode('combined')}
+              activeOpacity={0.8}
+            >
+              <Text style={[styles.toggleLabel, viewMode === 'combined' && styles.toggleLabelActive]}>
+                Combined
+              </Text>
+            </TouchableOpacity>
           </View>
           {hasCustomPositions && (
             <TouchableOpacity
@@ -223,17 +244,37 @@ export default function MapScreen() {
           {/* Relationship line legend — switches with viewMode */}
           <View style={[styles.legendCard, { marginTop: 6 }]}>
             <Text style={styles.legendTitle}>Connections</Text>
-            {viewMode === 'atlas' ? (
+            {viewMode === 'combined' ? (
+              <>
+                {REL_LEGEND.map((item) => (
+                  <View key={item.label} style={styles.legendRow}>
+                    <View style={styles.legendLineWrap}>
+                      {item.hull ? (
+                        <View style={[styles.legendHullSwatch, { borderColor: item.color, backgroundColor: item.color + '18' }]} />
+                      ) : item.dash ? (
+                        <View style={[styles.legendLineDash, { borderBottomColor: item.color }]} />
+                      ) : (
+                        <View style={[styles.legendLineSolid, { backgroundColor: item.color }]} />
+                      )}
+                    </View>
+                    <Text style={styles.legendLabel}>{item.label}</Text>
+                  </View>
+                ))}
+                <View style={styles.legendRow}>
+                  <View style={styles.legendLineWrap}>
+                    <View style={[styles.legendLineSolid, { backgroundColor: '#9B7A4A' }]} />
+                  </View>
+                  <Text style={styles.legendLabel}>Feeling connection</Text>
+                </View>
+              </>
+            ) : viewMode === 'atlas' ? (
               REL_LEGEND.map((item) => (
                 <View key={item.label} style={styles.legendRow}>
                   <View style={styles.legendLineWrap}>
-                    {item.dash ? (
-                      <View
-                        style={[
-                          styles.legendLineDash,
-                          { borderBottomColor: item.color },
-                        ]}
-                      />
+                    {item.hull ? (
+                      <View style={[styles.legendHullSwatch, { borderColor: item.color, backgroundColor: item.color + '18' }]} />
+                    ) : item.dash ? (
+                      <View style={[styles.legendLineDash, { borderBottomColor: item.color }]} />
                     ) : (
                       <View style={[styles.legendLineSolid, { backgroundColor: item.color }]} />
                     )}
@@ -391,6 +432,12 @@ const styles = StyleSheet.create({
     color: '#4A4845',
     fontStyle: 'italic',
     marginTop: 2,
+  },
+  legendHullSwatch: {
+    width: 20,
+    height: 12,
+    borderRadius: 4,
+    borderWidth: 1.5,
   },
   toggleContainer: {
     flexDirection: 'row',

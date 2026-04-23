@@ -10,13 +10,13 @@ export const DEV_CHAIN_STYLE: 'hanging-links' | 'broken-shackle' = 'hanging-link
 
 // Node base sizes (radius / half-width in canvas units)
 export const NODE_SIZES = {
-  self:        44,
-  manager:     32,
-  firefighter: 32,
-  exile:       30,
-  freed:       28,
-  unknown:     28,
-  shadowed:    26,
+  self:        33,
+  manager:     24,
+  firefighter: 24,
+  exile:       23,
+  freed:       21,
+  unknown:     21,
+  shadowed:    20,
 } as const;
 
 // Intensity scaling: base size + (intensity * 3px), capped at base + 18
