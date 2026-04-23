@@ -1,0 +1,319 @@
+{
+  "_notes": {
+    "purpose": "Questions for the First Mapping Assessment. Written in warm, first-person experiential language. No IFS jargon shown to users. Phase 1 responses drive backend inference for cluster weighting — never shown as classifications. Cluster questions surface the pattern; the Naming Moment names the part.",
+    "response_types": "phase1_q1: free_text | phase1_q2: free_text | phase1_q3: single_choice | phase1_q4: conditional_yes_no + free_text | phase1_q5: single_choice | clusters: slider_1_to_5 with optional free_text at end of each cluster | phase3: dynamic_generated",
+    "updatable": true,
+    "version": "1.0"
+  },
+
+  "phase1": {
+    "label": "The Moment",
+    "intro": "Before we look at patterns, let's start with something specific. Think of a recent moment — in the last week or two — when you had a strong reaction to something. It doesn't have to be dramatic. Just a moment where something in you shifted.",
+    "questions": [
+      {
+        "id": "p1_q1",
+        "text": "Briefly describe what happened — just a sentence or two is enough.",
+        "type": "free_text",
+        "placeholder": "Something came up at work, a conversation with someone, a feeling out of nowhere...",
+        "required": true
+      },
+      {
+        "id": "p1_q2",
+        "text": "Where did you feel it in your body first?",
+        "type": "free_text",
+        "placeholder": "Chest, stomach, shoulders, throat — anywhere it landed...",
+        "required": false
+      },
+      {
+        "id": "p1_q3",
+        "text": "When it hit, what did you do — or want to do?",
+        "type": "single_choice",
+        "options": [
+          { "value": "withdrew", "label": "I pulled back, got quiet, or wanted to disappear" },
+          { "value": "acted_out", "label": "I said something, pushed back, or got reactive" },
+          { "value": "went_busy", "label": "I got busy, distracted myself, or pushed through" },
+          { "value": "went_numb", "label": "I went a bit flat or disconnected from it" },
+          { "value": "tried_to_fix", "label": "I tried to solve it, manage it, or control the situation" },
+          { "value": "something_else", "label": "Something else" }
+        ],
+        "required": true
+      },
+      {
+        "id": "p1_q4",
+        "text": "Afterward, was there a second voice — something that commented on how you handled it?",
+        "type": "yes_no_with_conditional",
+        "options": [
+          { "value": "yes", "label": "Yes" },
+          { "value": "no", "label": "No" },
+          { "value": "not_sure", "label": "Not sure" }
+        ],
+        "conditional_on": "yes",
+        "conditional_question": "What did it say — even roughly?",
+        "conditional_type": "free_text",
+        "conditional_placeholder": "Something like 'you overreacted' or 'you should have said more'...",
+        "required": true
+      },
+      {
+        "id": "p1_q5",
+        "text": "How often does something like this happen for you?",
+        "type": "single_choice",
+        "options": [
+          { "value": "rarely", "label": "Rarely — this was unusual" },
+          { "value": "sometimes", "label": "Sometimes — a few times a month" },
+          { "value": "often", "label": "Often — a few times a week" },
+          { "value": "very_often", "label": "Very often — it's basically the background noise of my life" }
+        ],
+        "required": true
+      }
+    ],
+    "transition": "Thank you for sharing that. Now let's look at some broader patterns — the ones that show up not just in one moment, but across your life."
+  },
+
+  "clusterA": {
+    "label": "Standards & Effort",
+    "theme": "The part that holds the bar — and keeps raising it.",
+    "intro": "These questions are about the internal experience of effort, standards, and what happens when you fall short.",
+    "questions": [
+      {
+        "id": "cA_q1",
+        "text": "When you're working on something that matters to you, there's often a part watching — evaluating how well you're doing. How present is that for you?",
+        "type": "slider",
+        "min_label": "Barely there",
+        "max_label": "Constant presence",
+        "inference_targets": ["Perfectionist", "Analyzer", "Inner Critic"]
+      },
+      {
+        "id": "cA_q2",
+        "text": "When you finish something — a project, a conversation, a task — how quickly can you let yourself feel like it was good enough?",
+        "type": "slider",
+        "min_label": "Easily — I move on",
+        "max_label": "Rarely — there's always something I should have done better",
+        "inference_targets": ["Perfectionist", "Comparer", "Inner Critic"]
+      },
+      {
+        "id": "cA_q3",
+        "text": "If you make a mistake — especially one others might see — what happens inside?",
+        "type": "slider",
+        "min_label": "I notice it and move on",
+        "max_label": "It stays with me — I replay it, pick it apart",
+        "inference_targets": ["Perfectionist", "Inner Critic", "Comparer", "Rationalizer"]
+      },
+      {
+        "id": "cA_q4",
+        "text": "Is there a sense that if you relaxed your standards — even a little — something would go wrong?",
+        "type": "slider",
+        "min_label": "Not really",
+        "max_label": "Yes — the standards feel load-bearing",
+        "inference_targets": ["Perfectionist", "Controller", "Planner"]
+      },
+      {
+        "id": "cA_q5",
+        "text": "In your own words — what does the part of you that monitors your performance feel like it's trying to protect you from?",
+        "type": "free_text",
+        "placeholder": "Failure, humiliation, being seen as less than, letting people down...",
+        "required": false,
+        "inference_targets": ["Perfectionist", "Inner Critic", "Analyzer"]
+      }
+    ],
+    "naming_moment_trigger_threshold": 3.0
+  },
+
+  "clusterB": {
+    "label": "Relief & Escape",
+    "theme": "The part that finds a way out when things get to be too much.",
+    "intro": "These questions are about what happens when pressure builds — and how you find relief.",
+    "questions": [
+      {
+        "id": "cB_q1",
+        "text": "When stress or emotional pressure reaches a certain point, there's usually something you reach for — a behavior, a habit, a way of getting space. How familiar is that pattern for you?",
+        "type": "slider",
+        "min_label": "Not very — I generally sit with it",
+        "max_label": "Very familiar — there's a reliable go-to",
+        "inference_targets": ["Substance User", "Binge Eater", "Daydreamer", "Withdrawer", "Distractor"]
+      },
+      {
+        "id": "cB_q2",
+        "text": "When you use that relief strategy — whatever it is — how much of it feels like a choice versus something that just happens?",
+        "type": "slider",
+        "min_label": "Mostly a choice",
+        "max_label": "It happens before I've decided to do it",
+        "inference_targets": ["Substance User", "Behavior Addict", "Binge Eater", "Impulsive Spender"]
+      },
+      {
+        "id": "cB_q3",
+        "text": "Afterward — after you've gotten that relief — is there usually a part that has an opinion about it?",
+        "type": "slider",
+        "min_label": "Not really — I feel fine",
+        "max_label": "Yes — there's criticism, regret, or a cycle that starts up",
+        "inference_targets": ["Inner Critic", "Perfectionist", "Rationalizer"]
+      },
+      {
+        "id": "cB_q4",
+        "text": "How long has this pattern been with you?",
+        "type": "single_choice",
+        "options": [
+          { "value": "recent", "label": "It developed in the last few years" },
+          { "value": "some_years", "label": "It's been around for quite a while" },
+          { "value": "long_time", "label": "For as long as I can remember" },
+          { "value": "unsure", "label": "I'm not sure" }
+        ],
+        "inference_targets": ["all_firefighters"]
+      },
+      {
+        "id": "cB_q5",
+        "text": "What do you think this part of you is actually trying to do — when it reaches for relief?",
+        "type": "free_text",
+        "placeholder": "Get a break, feel something different, not feel anything, survive...",
+        "required": false,
+        "inference_targets": ["all_firefighters"]
+      }
+    ],
+    "naming_moment_trigger_threshold": 2.5
+  },
+
+  "clusterC": {
+    "label": "Connection & Relationships",
+    "theme": "The part that manages how safe it is to be close.",
+    "intro": "These questions are about what happens in relationships — especially when there's tension, need, or the possibility of disappointment.",
+    "questions": [
+      {
+        "id": "cC_q1",
+        "text": "When someone you care about is upset — with you, with something, with anyone — what happens inside you?",
+        "type": "slider",
+        "min_label": "I stay pretty steady",
+        "max_label": "Something in me mobilizes — to fix it, smooth it, or move away",
+        "inference_targets": ["Pleaser", "Peacemaker", "Caretaker", "Withdrawer"]
+      },
+      {
+        "id": "cC_q2",
+        "text": "Is there a part of you that keeps track of how others seem to be feeling toward you — picking up signals, monitoring the temperature?",
+        "type": "slider",
+        "min_label": "Not really — I don't track it closely",
+        "max_label": "Yes — it's like a background sensor that's always running",
+        "inference_targets": ["Pleaser", "Hypervigilant", "Peacemaker"]
+      },
+      {
+        "id": "cC_q3",
+        "text": "When you need something from someone — support, space, help — how easy is it to ask directly?",
+        "type": "slider",
+        "min_label": "Pretty easy — I ask when I need to",
+        "max_label": "Hard — I often manage without asking, or hint rather than ask",
+        "inference_targets": ["Pleaser", "Caretaker", "Minimizer"]
+      },
+      {
+        "id": "cC_q4",
+        "text": "In conflict or tension with someone close, what does the part of you that wants to preserve the connection tend to do?",
+        "type": "single_choice",
+        "options": [
+          { "value": "accommodates", "label": "It accommodates — gives way to keep the peace" },
+          { "value": "caretakes", "label": "It turns toward the other person — focuses on their feelings" },
+          { "value": "withdraws", "label": "It pulls back — distances until things cool down" },
+          { "value": "minimizes", "label": "It minimizes — acts like it's not a big deal" },
+          { "value": "manages", "label": "It manages the situation — tries to steer the outcome" },
+          { "value": "mix", "label": "A mix of several of these" }
+        ],
+        "inference_targets": ["Pleaser", "Caretaker", "Peacemaker", "Minimizer", "Withdrawer"]
+      },
+      {
+        "id": "cC_q5",
+        "text": "What do you think this part is most afraid would happen if it stopped doing its job in relationships?",
+        "type": "free_text",
+        "placeholder": "The relationship would fall apart, people would leave, conflict would spiral...",
+        "required": false,
+        "inference_targets": ["Pleaser", "Caretaker", "Peacemaker"]
+      }
+    ],
+    "naming_moment_trigger_threshold": 2.5
+  },
+
+  "clusterD": {
+    "label": "The Voice Inside",
+    "theme": "The part that comments on you — and what it might be covering.",
+    "intro": "These questions are about the internal commentary — the voice that evaluates, judges, or sometimes goes very quiet.",
+    "questions": [
+      {
+        "id": "cD_q1",
+        "text": "Is there a voice inside that comments on you — on how you're doing, what you should have said, whether you're getting it right?",
+        "type": "slider",
+        "min_label": "Barely — I don't hear it much",
+        "max_label": "It's almost constant",
+        "inference_targets": ["Inner Critic", "Comparer", "Perfectionist"]
+      },
+      {
+        "id": "cD_q2",
+        "text": "When that voice speaks, what's its general tone?",
+        "type": "single_choice",
+        "options": [
+          { "value": "harsh", "label": "Harsh — critical, contemptuous, disappointed" },
+          { "value": "worried", "label": "Worried — anxious, vigilant, scanning for problems" },
+          { "value": "comparing", "label": "Comparative — measuring me against others or a standard" },
+          { "value": "coaching", "label": "Coaching — pushing me to do better, work harder" },
+          { "value": "quiet_flat", "label": "It's more of an absence — things go flat or numb" },
+          { "value": "mix", "label": "A mix" }
+        ],
+        "inference_targets": ["Inner Critic", "Perfectionist", "Comparer", "Suppressor"]
+      },
+      {
+        "id": "cD_q3",
+        "text": "When that voice is active, what do you tend to do — on the inside?",
+        "type": "slider",
+        "min_label": "I engage with it — argue back, comply, try to satisfy it",
+        "max_label": "I shut down — go quiet, go flat, try to disappear from myself",
+        "inference_targets": ["Inner Critic", "Suppressor", "Minimizer"],
+        "exile_signal_high": true
+      },
+      {
+        "id": "cD_q4",
+        "text": "If you turn toward the harshest thing this voice says — not to agree with it, just to notice it — what does it say about you?",
+        "type": "free_text",
+        "placeholder": "That I'm not enough, that I'm a disappointment, that something is wrong with me...",
+        "required": false,
+        "inference_targets": ["Inner Critic", "Shamed One", "Worthless One", "Unlovable One"]
+      },
+      {
+        "id": "cD_q5",
+        "text": "There's often something underneath that voice — something it's been trying to protect you from feeling. How much do you sense something there?",
+        "type": "slider",
+        "min_label": "Not really — it's just a voice",
+        "max_label": "Yes — something heavier is underneath",
+        "inference_targets": ["Shamed One", "Worthless One", "Unlovable One", "Invisible One"],
+        "exile_signal_high": true
+      }
+    ],
+    "exile_node_placement_threshold": 3.5,
+    "naming_moment_trigger_threshold": 2.5,
+    "_note_on_exile": "If cD_q3 or cD_q5 score above exile_node_placement_threshold, place a shadowed Exile node on the map with NO naming prompt. Label: 'Unknown — waiting to be known'. This is the first planted cliffhanger."
+  },
+
+  "phase3": {
+    "label": "The Connections",
+    "intro": "You've met a few parts now. Before we show you what this looks like, there are a couple of questions about how they relate to each other.",
+    "_note": "Questions in Phase 3 are dynamically generated using the names the user chose in their naming moments. Replace [partA_name], [partB_name], [partC_name] with actual user-chosen names. Select the most clinically relevant pairing based on cluster types revealed.",
+    "dynamic_questions": [
+      {
+        "id": "p3_q1",
+        "template": "[partA_name] and [partB_name] — do they ever seem to be responding to the same thing? Like [partA_name] tries to hold something together, and when that doesn't work, [partB_name] shows up?",
+        "type": "slider",
+        "min_label": "Not really — they feel separate",
+        "max_label": "Yes — they seem to be in the same system",
+        "inference_targets": ["protective_relationship", "polarized_relationship"]
+      },
+      {
+        "id": "p3_q2",
+        "template": "Does [partA_name] ever seem to react to [partB_name]? Like one of them triggers or activates the other?",
+        "type": "slider",
+        "min_label": "Not that I notice",
+        "max_label": "Yes — there's a cycle",
+        "inference_targets": ["polarized_relationship", "conflicting_relationship"]
+      },
+      {
+        "id": "p3_q3",
+        "template": "When you think about [partA_name], [partB_name], and [partC_name] all together — how do you feel toward them as a group?",
+        "type": "free_text",
+        "placeholder": "Tired, grateful, frustrated, curious, something else...",
+        "required": false,
+        "_note": "This is the Self-access baseline. Stored in self_energy_checkins. Never scored or labeled. Used as opening orientation data only."
+      }
+    ]
+  }
+}

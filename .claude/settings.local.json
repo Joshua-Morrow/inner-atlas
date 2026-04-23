@@ -1,0 +1,32 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx tsc:*)",
+      "Bash(./node_modules/.bin/tsc --noEmit)",
+      "Bash(node_modules/.bin/tsc --noEmit)",
+      "Bash(/c/Projects/inner-atlas/apps/mobile/node_modules/.bin/tsc --noEmit -p /c/Projects/inner-atlas/apps/mobile/tsconfig.json 2>&1)",
+      "Bash(./node_modules/.bin/tsc --noEmit --skipLibCheck)",
+      "Bash(\"/c/Projects/inner-atlas/progress.md\":*)",
+      "Bash(npx expo:*)",
+      "Bash(npm install:*)",
+      "Bash(cut -d'\\(' -f1)",
+      "Bash(find /c/Projects/inner-atlas -name index.d.ts -path */react-native/index.d.ts)",
+      "Bash(find /c/Projects/inner-atlas -name *.d.ts -path */react-native/Libraries/Components/View/View.d.ts)",
+      "Bash(/dev/null cat:*)",
+      "Bash(find /c/Projects/inner-atlas -name index.d.ts -path */@types/react/* 2)",
+      "Bash(/dev/null find:*)",
+      "Bash(find /c/Projects/inner-atlas -name index.d.ts -path */@types/react/* -not -path */ts5.0/*)",
+      "Bash(xargs grep:*)",
+      "Bash(find /c/Projects/inner-atlas -name index.d.ts -path */@types/react*)",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(json.dumps\\(d.get\\(''''peerDependencies'''', {}\\), indent=2\\)\\)\")",
+      "Bash(node:*)",
+      "Bash(find /c/Projects/inner-atlas -name package.json -path */@types/react/package.json)",
+      "Bash(find /c/Projects/inner-atlas/apps/mobile/node_modules/@shopify/react-native-skia -name package.json -path */@types/react/*)",
+      "Bash(for f:*)",
+      "Bash(do)",
+      "Read(//c/Projects/inner-atlas/apps/mobile/**)",
+      "Bash(echo \"FOUND in $f\")",
+      "Bash(echo \"NOT in $f\")"
+    ]
+  }
+}

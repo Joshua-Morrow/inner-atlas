@@ -1,0 +1,571 @@
+{
+  "_notes": {
+    "purpose": "Guided technique scripts for the Self-Energy Check-In and Elaboration features. Written in second-person, warm, practitioner-voice. Structured for app delivery — each technique has a 'steps' array that drives the screen-by-screen flow. Each step has a 'type' that informs the UI component rendered. Techniques build on each other sequentially: Mindfulness → Inquiry → Unblending → Feel Towards → Meeting Space.",
+    "step_types": "instruction | breathing_anchor | reflection_prompt | multi_prompt | scale | single_choice | free_text | transition | closing",
+    "updatable": true,
+    "version": "1.0"
+  },
+
+  "techniques": [
+
+    {
+      "id": "mindfulness",
+      "display_name": "Parts Mindfulness",
+      "tagline": "The foundation. Learning to notice what's happening inside.",
+      "description": "This technique is the simplest and most foundational way to make contact with your inner world. Through intentional breathing and focused attention, you'll begin to notice the thoughts, feelings, sensations, and impulses that arise — and recognize them as coming from your parts.",
+      "estimated_minutes": "5–10",
+      "when_to_use": "When you're new to parts work, when you need to ground before another technique, or when you want a clean inventory of what's active right now.",
+      "prerequisite": null,
+      "process_shorthand": "FOCUS INWARD → BREATHE → ANCHOR → RECOGNIZE → LABEL → ACKNOWLEDGE → CLEAR → REPEAT",
+      "steps": [
+        {
+          "id": "m_intro",
+          "type": "instruction",
+          "heading": "Getting started",
+          "body": "Find a place where you can sit or lie down comfortably for the next several minutes. You don't need silence — just a space where you can turn your attention inward without interruption."
+        },
+        {
+          "id": "m_eyes",
+          "type": "instruction",
+          "heading": "Close your eyes — or find a point",
+          "body": "If it's comfortable, close your eyes. If not, find a single point in front of you to rest your gaze on. Either way, the goal is the same: to shift your attention from the outer world to the inner one."
+        },
+        {
+          "id": "m_breath",
+          "type": "breathing_anchor",
+          "heading": "Breathe",
+          "body": "Bring your full attention to your breath. Not controlling it at first — just noticing it. Feel the inhale and exhale at your solar plexus, your throat, or the sensation at your nostrils. Whichever feels clearest.\n\nNow begin to slow the breath: about 5–6 seconds for the inhale, 5–6 seconds for the exhale. Smooth and continuous, with no holding. Let the rhythm settle.",
+          "timer_seconds": 30,
+          "timer_label": "Settle into the breath"
+        },
+        {
+          "id": "m_anchor_explain",
+          "type": "instruction",
+          "heading": "This is your anchor",
+          "body": "The breath is your anchor — what you'll keep returning to throughout this practice. Normally, attention floats wherever thoughts and feelings pull it. Here, you're choosing where it goes.\n\nThis distinction matters. You're not trying to stop your inner world from happening. You're learning to notice it — from a slight distance."
+        },
+        {
+          "id": "m_recognize_explain",
+          "type": "instruction",
+          "heading": "What will happen next",
+          "body": "Something will pull your attention away from the breath. It always does. A thought about something you need to do. A feeling that surfaces. A physical discomfort. An impulse to stop and do something else. A memory, a worry, a plan.\n\nWhen it happens — that's the practice. Your job is simply to notice that your attention has shifted."
+        },
+        {
+          "id": "m_practice_loop",
+          "type": "instruction",
+          "heading": "The full loop",
+          "body": "Each time something draws your attention away from the breath:\n\n1. RECOGNIZE — notice that your attention has shifted\n2. LABEL — note what arose (a word or short phrase is enough)\n3. ACKNOWLEDGE — inwardly say 'I see you' to whatever arose\n4. CLEAR — gently let it go and return to the breath\n5. REPEAT — return to anchor and wait for the next thing\n\nNothing that arises is wrong. You're not trying to clear your mind permanently — you're learning to notice, acknowledge, and return."
+        },
+        {
+          "id": "m_practice_timer",
+          "type": "breathing_anchor",
+          "heading": "Begin the practice",
+          "body": "Anchor to the breath now. When something arises, use the field below to capture it — just a word or short phrase. Mark it with an asterisk (*) each time it comes back up.\n\nContinue for as long as feels right. 5–10 minutes is a good starting point.",
+          "timer_seconds": 300,
+          "timer_label": "Mindfulness practice"
+        },
+        {
+          "id": "m_log",
+          "type": "multi_prompt",
+          "heading": "What came up",
+          "instruction": "List the thoughts, feelings, impulses, and sensations that grabbed your attention. Add an asterisk (*) for each time something returned.",
+          "prompt_label": "Inner experience",
+          "add_button_label": "Add another",
+          "min_entries": 1,
+          "max_entries": 20,
+          "placeholder": "e.g., Worry about tomorrow's meeting (**)"
+        },
+        {
+          "id": "m_closing",
+          "type": "closing",
+          "heading": "What you're looking at",
+          "body": "This list — these thoughts, feelings, impulses, and sensations — are almost certainly coming from your parts. Each one arose for a reason. Each one has something it's trying to do.\n\nYou've just taken your first inventory. We'll do more with this as you go.",
+          "save_to": "practice_sessions",
+          "next_technique_suggestion": "inquiry"
+        }
+      ]
+    },
+
+    {
+      "id": "inquiry",
+      "display_name": "Inquiry",
+      "tagline": "Asking the inner world a question — and actually listening for the answer.",
+      "description": "Inquiry is active inner listening. Instead of thinking about a question, you ask it inward — then go quiet and wait for a response to arise. It's the same discipline as the mindfulness practice, but with a directed question rather than open observation. Responses come as memories, feelings, images, or sudden knowings. The key is not to think your way to an answer, but to create enough inner space that one can surface.",
+      "estimated_minutes": "10–15",
+      "when_to_use": "When you want to explore a specific quality of Self, when you're preparing for deeper parts work, or when you want to access Self-energy before another technique.",
+      "prerequisite": "mindfulness",
+      "process_shorthand": "FOCUS INWARD → BREATHE → ANCHOR → ASK → CLEAR → LISTEN → RECEIVE → RECORD",
+      "steps": [
+        {
+          "id": "i_intro",
+          "type": "instruction",
+          "heading": "Thinking vs. inquiring",
+          "body": "There's a difference between thinking about a question and inquiring into one. Thinking is something parts do — it's mental activity, generating answers from what you already know. Inquiry is different. It's asking the question and then falling quiet — genuinely waiting for something to arise from the deeper part of you that knows."
+        },
+        {
+          "id": "i_anchor",
+          "type": "breathing_anchor",
+          "heading": "Anchor first",
+          "body": "Begin by settling into your breath. 5–6 seconds in, 5–6 seconds out. Take a minute to let the surface activity settle before bringing in the first question.",
+          "timer_seconds": 60,
+          "timer_label": "Settle and anchor"
+        },
+        {
+          "id": "i_how_it_works",
+          "type": "instruction",
+          "heading": "How to ask",
+          "body": "For each question:\n\n1. Read it slowly. Let it land.\n2. Close your eyes (if comfortable).\n3. Ask the question inwardly — then clear your mind and wait.\n4. Don't reach for an answer. Let one arise.\n5. When something comes — a memory, a feeling, an image, a knowing — open your eyes and record it.\n\nIf nothing comes on the first pass, that's fine. Note that too. Sometimes 'nothing' is meaningful. Sometimes an answer arrives later, after the session is over."
+        },
+        {
+          "id": "i_calm",
+          "type": "free_text",
+          "heading": "When was there Calm?",
+          "prompt": "When in my life was there a time when I felt a strong sense of CALM?",
+          "instruction": "Ask the question inwardly. Clear your mind. Wait. When something arrives, record it here.",
+          "placeholder": "A memory, a feeling, an image, a moment...",
+          "required": false
+        },
+        {
+          "id": "i_curious",
+          "type": "free_text",
+          "heading": "When was there Curiosity?",
+          "prompt": "When in my life was there a time when I felt a strong sense of CURIOSITY?",
+          "instruction": "Ask the question inwardly. Clear your mind. Wait.",
+          "placeholder": "A memory, a feeling, an image, a moment...",
+          "required": false
+        },
+        {
+          "id": "i_compassion",
+          "type": "free_text",
+          "heading": "When was there Compassion?",
+          "prompt": "When in my life was there a time when I felt a strong sense of COMPASSION?",
+          "instruction": "Ask the question inwardly. Clear your mind. Wait.",
+          "placeholder": "A memory, a feeling, an image, a moment...",
+          "required": false
+        },
+        {
+          "id": "i_clarity",
+          "type": "free_text",
+          "heading": "When was there Clarity?",
+          "prompt": "When in my life was there a time when I felt a strong sense of CLARITY?",
+          "instruction": "Ask the question inwardly. Clear your mind. Wait.",
+          "placeholder": "A memory, a feeling, an image, a moment...",
+          "required": false
+        },
+        {
+          "id": "i_confidence",
+          "type": "free_text",
+          "heading": "When was there Confidence?",
+          "prompt": "When in my life was there a time when I felt a strong sense of CONFIDENCE?",
+          "instruction": "Ask the question inwardly. Clear your mind. Wait.",
+          "placeholder": "A memory, a feeling, an image, a moment...",
+          "required": false
+        },
+        {
+          "id": "i_creativity",
+          "type": "free_text",
+          "heading": "When was there Creativity?",
+          "prompt": "When in my life was there a time when I felt a strong sense of CREATIVITY?",
+          "instruction": "Ask the question inwardly. Clear your mind. Wait.",
+          "placeholder": "A memory, a feeling, an image, a moment...",
+          "required": false
+        },
+        {
+          "id": "i_courage",
+          "type": "free_text",
+          "heading": "When was there Courage?",
+          "prompt": "When in my life was there a time when I felt a strong sense of COURAGE?",
+          "instruction": "Ask the question inwardly. Clear your mind. Wait.",
+          "placeholder": "A memory, a feeling, an image, a moment...",
+          "required": false
+        },
+        {
+          "id": "i_connectedness",
+          "type": "free_text",
+          "heading": "When was there Connectedness?",
+          "prompt": "When in my life was there a time when I felt a strong sense of CONNECTEDNESS?",
+          "instruction": "Ask the question inwardly. Clear your mind. Wait.",
+          "placeholder": "A memory, a feeling, an image, a moment...",
+          "required": false
+        },
+        {
+          "id": "i_closing",
+          "type": "closing",
+          "heading": "What you just accessed",
+          "body": "These memories and moments are evidence of your Self. They're not aspirational — they're actual. You've been there before. These touchstones are anchors you can return to when parts crowd the Self out.\n\nAs you go deeper in this work, the ability to locate a Self memory quickly becomes a useful reset point.",
+          "save_to": "self_energy_checkins",
+          "next_technique_suggestion": "unblending"
+        }
+      ]
+    },
+
+    {
+      "id": "unblending",
+      "display_name": "Unblending",
+      "tagline": "Creating space between you and a part — so you can work with it rather than be it.",
+      "description": "Unblending is the core differentiating skill of IFS. When a part is blended — fully merged with your awareness — it feels like you. You don't feel angry; you feel like you ARE anger. Unblending creates a small but crucial space: 'there's a part of me that feels angry' rather than 'I am angry.' That shift changes everything. This practice builds the muscle of noticing parts as parts — present, real, heard, but not in charge.",
+      "estimated_minutes": "10–15",
+      "when_to_use": "When you're reactive and can't find any distance from what you're feeling. When a part is running the show. Before any deeper parts work — you need unblending to do any of the techniques that follow.",
+      "prerequisite": "mindfulness",
+      "process_shorthand": "FOCUS INWARD → BREATHE → ANCHOR → RECOGNIZE → RE-ANCHOR → CREATE SPACE → NAME → ACKNOWLEDGE → ATTEND",
+      "steps": [
+        {
+          "id": "u_intro",
+          "type": "instruction",
+          "heading": "The problem with 'I am'",
+          "body": "Think about how we normally talk about inner experience. 'I am anxious.' 'I am depressed.' 'I am angry.' The language suggests that you ARE these things — that the feeling is all of you.\n\nBut when you see a tree, you don't say 'I am a tree.' You say 'I see a tree.' When you feel pain in your foot, you don't say 'I am my foot.' You say 'my foot hurts.'\n\nUnblending is applying that same distinction inward: 'There's a part of me that feels anxious.' That one shift — from 'I am' to 'a part of me' — begins the separation."
+        },
+        {
+          "id": "u_sun_analogy",
+          "type": "instruction",
+          "heading": "The sun and the clouds",
+          "body": "Here's an image that helps: the Self is the sun. Parts are clouds. The sun is always shining — it doesn't go anywhere. But on cloudy days, you can't see or feel it. The clouds are real. They're not imaginary or wrong. But they're not the sun.\n\nWhen a part is strongly blended, it's a cloudy day. Unblending doesn't make the clouds disappear — it finds the sun again, still present behind them."
+        },
+        {
+          "id": "u_anchor",
+          "type": "breathing_anchor",
+          "heading": "Anchor to the breath",
+          "body": "Begin as before. Find the breath, slow it down, and bring your full attention to it. Let the surface settle.",
+          "timer_seconds": 60,
+          "timer_label": "Settle and anchor"
+        },
+        {
+          "id": "u_process_explain",
+          "type": "instruction",
+          "heading": "The unblending sequence",
+          "body": "This time, when something arises and pulls your attention from the breath:\n\n1. RECOGNIZE — notice the attention has shifted\n2. RE-ANCHOR — briefly return to the breath\n3. CREATE SPACE — instead of clearing it out, turn back toward what arose and see if you can observe it from a slight distance. It's here. It's real. And it's not all of you.\n4. NAME — give it something to be called, even roughly\n5. ACKNOWLEDGE — 'I see you, and I'm not you'\n6. ATTEND — stay with it for a moment. Listen to it as something separate."
+        },
+        {
+          "id": "u_practice_1",
+          "type": "multi_prompt",
+          "heading": "First inner experience",
+          "fields": [
+            { "id": "u1_what", "label": "What arose?", "placeholder": "A feeling, thought, impulse, or sensation..." },
+            { "id": "u1_space", "label": "Could you notice it without being it — could you create space?", "type": "yes_no_text", "placeholder": "What happened when you tried?" },
+            { "id": "u1_name", "label": "What could this part be called?", "placeholder": "A rough name is fine..." },
+            { "id": "u1_thinking", "label": "What is it thinking?", "placeholder": "" },
+            { "id": "u1_feeling", "label": "What is it feeling?", "placeholder": "" },
+            { "id": "u1_wanting", "label": "What does it want?", "placeholder": "" }
+          ]
+        },
+        {
+          "id": "u_practice_2",
+          "type": "multi_prompt",
+          "heading": "Second inner experience",
+          "instruction": "Return to the breath anchor. Wait for the next thing that arises.",
+          "fields": [
+            { "id": "u2_what", "label": "What arose?", "placeholder": "" },
+            { "id": "u2_space", "label": "Could you notice it without being it?", "type": "yes_no_text", "placeholder": "" },
+            { "id": "u2_name", "label": "What could this part be called?", "placeholder": "" },
+            { "id": "u2_thinking", "label": "What is it thinking?", "placeholder": "" },
+            { "id": "u2_feeling", "label": "What is it feeling?", "placeholder": "" },
+            { "id": "u2_wanting", "label": "What does it want?", "placeholder": "" }
+          ]
+        },
+        {
+          "id": "u_practice_3",
+          "type": "multi_prompt",
+          "heading": "Third inner experience",
+          "instruction": "Return to the breath anchor once more.",
+          "fields": [
+            { "id": "u3_what", "label": "What arose?", "placeholder": "" },
+            { "id": "u3_space", "label": "Could you notice it without being it?", "type": "yes_no_text", "placeholder": "" },
+            { "id": "u3_name", "label": "What could this part be called?", "placeholder": "" },
+            { "id": "u3_thinking", "label": "What is it thinking?", "placeholder": "" },
+            { "id": "u3_feeling", "label": "What is it feeling?", "placeholder": "" },
+            { "id": "u3_wanting", "label": "What does it want?", "placeholder": "" }
+          ]
+        },
+        {
+          "id": "u_closing",
+          "type": "closing",
+          "heading": "What you're building",
+          "body": "The ability to hold a part in awareness without being overtaken by it — this is the foundational skill everything else builds on. You can't get curious about a part you're fused with. You can't lead from Self when a part is in the driver's seat.\n\nEven a small amount of space changes the experience completely. With practice, the space becomes more available, more quickly.",
+          "save_to": "practice_sessions",
+          "next_technique_suggestion": "feel_towards"
+        }
+      ]
+    },
+
+    {
+      "id": "feel_towards",
+      "display_name": "The Feel Towards Question",
+      "tagline": "The clearest way to know if Self is present.",
+      "description": "The Feel Towards question is the primary diagnostic for Self-presence: 'How do I feel toward this part?' If the answer carries the qualities of Self — curiosity, warmth, openness, patience — you're in Self. If the answer is judgment, irritation, fear, or urgency, a different part is blended. This technique turns that diagnostic into a full practice: noticing what the feel-towards response reveals, working with whatever part is reacting, and gradually arriving at genuine Self-to-part contact.",
+      "estimated_minutes": "10–20",
+      "when_to_use": "Before any deeper parts work. As a check before Elaboration or Trailhead. Whenever you're unsure whether you're relating to a part from Self or from another part.",
+      "prerequisite": "unblending",
+      "process_shorthand": "ANCHOR → RECOGNIZE → CREATE SPACE → NAME → ACKNOWLEDGE → ATTEND → ASSESS (feel towards) → IF PART: REPEAT | IF SELF: CONTINUE",
+      "steps": [
+        {
+          "id": "ft_intro",
+          "type": "instruction",
+          "heading": "The question that reveals everything",
+          "body": "Once you've unblended from a part — created a little space and turned your attention toward it — one question cuts through all the noise: 'How do I feel toward this part right now?'\n\nIf what arises is curiosity, warmth, patience, or genuine interest — that's Self. If what arises is judgment ('this part is bad'), frustration, fear, urgency, or even excessive approval — that's another part. And that other part is now the one that needs attention first."
+        },
+        {
+          "id": "ft_judgment_note",
+          "type": "instruction",
+          "heading": "On judgment",
+          "body": "The clearest sign of a blended part is judgment: 'This part is the problem.' 'This part is weak.' 'This part is destroying my life.' These judgments feel true — they feel like clear-eyed assessment. But they're coming from another part, usually a manager who's been at war with the part in question for years.\n\nA subtler version: strong approval — 'I like this part.' Parts form coalitions, and allied parts feel warmly toward each other. Genuine Self-to-part feeling is more open and less opinionated. It's interested, not attached to an outcome."
+        },
+        {
+          "id": "ft_anchor",
+          "type": "breathing_anchor",
+          "heading": "Anchor first",
+          "body": "Find the breath. Slow it down. Let things settle before bringing your focus part to mind.",
+          "timer_seconds": 45,
+          "timer_label": "Settle and anchor"
+        },
+        {
+          "id": "ft_bring_part",
+          "type": "instruction",
+          "heading": "Bring a part to mind",
+          "body": "Think of a part that's been active lately — or choose one from your map. Don't analyze it. Just sense its presence: a feeling, an image, a quality of energy. Notice where you feel it in your body.\n\nCreate space from it. Let it be here, and let yourself be here — as the one noticing it, not the one who is it."
+        },
+        {
+          "id": "ft_assess",
+          "type": "single_choice",
+          "heading": "How do you feel toward this part right now?",
+          "instruction": "Before selecting, actually turn toward the part and notice your response. What arises?",
+          "options": [
+            { "value": "self_present", "label": "Curious, open, or warm — I'm genuinely interested in it" },
+            { "value": "frustrated", "label": "Frustrated or irritated — this part is a problem" },
+            { "value": "fearful", "label": "Fearful or cautious — I don't want to go there" },
+            { "value": "urgent", "label": "Urgent — I want it to change or stop" },
+            { "value": "approving", "label": "Approving — I like this part, it's a good one" },
+            { "value": "flat", "label": "Flat or numb — I don't feel much toward it at all" },
+            { "value": "unsure", "label": "Unsure — I can't quite tell" }
+          ]
+        },
+        {
+          "id": "ft_if_part_active",
+          "type": "instruction",
+          "heading": "If a part is responding",
+          "body": "If your answer was anything other than curious, open, or warm — another part is active. This isn't a failure. It's information. That reactive part is now your focus.\n\nUse the unblending sequence on it: create space, name it, acknowledge it, attend to it. Then ask the feel-towards question again.\n\nYou may go through this loop several times before arriving at genuine Self-to-part contact. That's the work. There's no shortcut, and there shouldn't be.",
+          "conditional_show_if": ["frustrated", "fearful", "urgent", "approving", "flat", "unsure"]
+        },
+        {
+          "id": "ft_reactive_part",
+          "type": "multi_prompt",
+          "heading": "The part that's reacting",
+          "instruction": "Work with the reactive part first. Use the space below.",
+          "fields": [
+            { "id": "ft_r_name", "label": "What could this reactive part be called?", "placeholder": "" },
+            { "id": "ft_r_feeling", "label": "What is it feeling toward the focus part?", "placeholder": "" },
+            { "id": "ft_r_fear", "label": "What is it afraid would happen if it stepped back?", "placeholder": "" },
+            { "id": "ft_r_ask", "label": "Can you ask it to give you a little space — just temporarily? What does it say?", "placeholder": "" }
+          ],
+          "conditional_show_if": ["frustrated", "fearful", "urgent", "approving", "flat", "unsure"]
+        },
+        {
+          "id": "ft_reassess",
+          "type": "free_text",
+          "heading": "Check again",
+          "prompt": "After working with the reactive part — how do you feel toward the original part now?",
+          "placeholder": "Warmer, still guarded, more curious, something else...",
+          "required": false
+        },
+        {
+          "id": "ft_self_contact",
+          "type": "free_text",
+          "heading": "From this place",
+          "prompt": "When you're in — or close to — Self and you turn toward the part with genuine curiosity: what do you notice? What does the part seem to want you to know?",
+          "placeholder": "What arises when you're actually present with it...",
+          "required": false,
+          "conditional_show_if": ["self_present"]
+        },
+        {
+          "id": "ft_closing",
+          "type": "closing",
+          "heading": "The practice underneath the technique",
+          "body": "The Feel Towards question isn't just a diagnostic — it's a practice of cultivating Self-leadership in real time. Every time you catch a part reacting to another part and choose to work with the reactive one first, you're building something. A system that can trust the Self to navigate, rather than one where parts are managing parts.\n\nThis takes time. It rarely happens in a single session. But each loop through the sequence is genuine progress.",
+          "save_to": "self_energy_checkins",
+          "next_technique_suggestion": "meeting_space"
+        }
+      ]
+    },
+
+    {
+      "id": "meeting_space",
+      "display_name": "The Meeting Space",
+      "tagline": "Meeting a part directly — in a space of your own making.",
+      "description": "The Meeting Space is an inner imaginal technique for direct encounter with a part. Rather than thinking about a part or observing it from a distance, you create an inner space and invite the part to be present there with you — then ask it questions and listen for responses. Responses may come as words, images, body sensations, feelings, or sudden knowings. This technique builds on every other technique in the library and requires genuine Self-presence before beginning.",
+      "estimated_minutes": "20–30",
+      "when_to_use": "When you want to go deeper with a specific part — beyond observation and into actual dialogue. Particularly valuable for parts you've been struggling with, parts that have been active for a long time, or parts that feel foreign or hard to reach.",
+      "prerequisite": "feel_towards",
+      "safety_note": "This technique can surface significant material — particularly when working with exile parts or parts connected to difficult history. If you become emotionally overwhelmed at any point, use the ground button to return to your breath and regulated state. With exiles specifically, work with a therapist present if possible.",
+      "process_shorthand": "SELF-CHECK → ANCHOR → SENSE THE PART → FEEL TOWARDS → CREATE THE SPACE → ACKNOWLEDGE → ASK → LISTEN → RECEIVE → CLOSE WELL",
+      "steps": [
+        {
+          "id": "ms_intro",
+          "type": "instruction",
+          "heading": "Thinking about vs. meeting",
+          "body": "There's a difference between thinking about a part and actually meeting it. Thinking is useful — but it stays at the surface. It's your mind analyzing what you already know about the part.\n\nMeeting is different. You go inward, connect with the actual felt presence of the part, and let it communicate in its own way — not through your interpretation of it, but through it.\n\nPsychologically, what you're doing is using the deeper structures of the mind — visual, emotional, relational — to create a bridge to parts that don't speak in straightforward analytical terms. It bypasses the thinking that would otherwise filter everything."
+        },
+        {
+          "id": "ms_visual_note",
+          "type": "instruction",
+          "heading": "On imagery and sensing",
+          "body": "Some people are naturally visual. Others feel their parts more than see them. Others hear them, or get body sensations, or receive impressions that are hard to categorize. All of these are valid.\n\nIf you don't see clear images, that's fine. Let the Meeting Space be whatever makes sense for you — a felt quality, an energetic presence, a sense of something nearby. Follow your own mode of inner experience."
+        },
+        {
+          "id": "ms_self_first",
+          "type": "instruction",
+          "heading": "Self first — always",
+          "body": "This is non-negotiable: before entering the Meeting Space with any part, check that you're in — or close to — Self.\n\nIf you're frustrated with the part, afraid of it, or hoping it will agree with you and change, a different part is running the show. Do the Feel Towards check first. Unblend from whatever is reactive. Then enter.\n\nEntering with a blended part doesn't produce Meeting Space contact — it produces the reactive part interrogating the focus part. That usually goes nowhere useful."
+        },
+        {
+          "id": "ms_feel_towards_check",
+          "type": "single_choice",
+          "heading": "Feel Towards check",
+          "instruction": "Before proceeding: bring your focus part to mind and ask — how do I feel toward it right now?",
+          "options": [
+            { "value": "ready", "label": "Curious, open, or warm — I'm ready to meet it" },
+            { "value": "not_ready", "label": "Something reactive is present — I need to unblend first" }
+          ],
+          "_note": "If 'not_ready' selected, route user to unblending flow before proceeding. Surface unblending steps inline."
+        },
+        {
+          "id": "ms_anchor",
+          "type": "breathing_anchor",
+          "heading": "Settle and center",
+          "body": "Find your breath. Slow it down. Take a few minutes to let the surface quiet before you go in.",
+          "timer_seconds": 90,
+          "timer_label": "Center before entering"
+        },
+        {
+          "id": "ms_sense_presence",
+          "type": "free_text",
+          "heading": "Sense the part's presence",
+          "prompt": "Without analyzing — just sense this part. How does it present itself right now? Is it a feeling, an image, a quality of energy, a tension or sensation in your body?",
+          "instruction": "Don't reach for an answer. Let something arise.",
+          "placeholder": "What you notice when you turn toward it...",
+          "required": false
+        },
+        {
+          "id": "ms_create_space",
+          "type": "free_text",
+          "heading": "Create the Meeting Space",
+          "prompt": "In your imagination, create a space where you can meet this part. It doesn't have to be a room. It can be anywhere — outdoors, a landscape, any setting that feels neutral and open. What space comes to you?",
+          "instruction": "Let the space choose itself if it will. What arises?",
+          "placeholder": "A room, a forest clearing, a shoreline, something else...",
+          "required": false
+        },
+        {
+          "id": "ms_acknowledge",
+          "type": "instruction",
+          "heading": "Enter and acknowledge",
+          "body": "You're in the Meeting Space now. Before asking anything — acknowledge the part. Let it know you're here, you see it, and you want to understand it. Not fix it, not argue with it, not get it to stop doing what it does. Just understand.\n\nMany parts have never been approached this way. Some will be cautious. Some will be disbelieving. That's fine. Let the acknowledgment land at whatever pace the part allows."
+        },
+        {
+          "id": "ms_opening_questions",
+          "type": "instruction",
+          "heading": "Beginning questions",
+          "body": "Start here on your first visit with this part. Ask one question at a time. After each one — pause, clear your mind, and wait.\n\n• What would you like me to call you?\n• How old are you, or how old do you feel?\n• What do you look like — do you have a form, a color, an image?\n• How long have you been with me?\n• What do you notice about me right now?\n\nResponses may come as words, images, feelings, body sensations, or sudden knowings. All are valid. Write whatever comes, even if it seems strange or unclear."
+        },
+        {
+          "id": "ms_opening_responses",
+          "type": "multi_prompt",
+          "heading": "Record opening responses",
+          "instruction": "Record whatever the part communicated. Fragments are fine.",
+          "fields": [
+            { "id": "ms_name", "label": "What does it want to be called?", "placeholder": "" },
+            { "id": "ms_age", "label": "How old does it feel?", "placeholder": "" },
+            { "id": "ms_appearance", "label": "What does it look like, or how does it present?", "placeholder": "" },
+            { "id": "ms_duration", "label": "How long has it been present?", "placeholder": "" },
+            { "id": "ms_notices", "label": "What does it notice about you right now?", "placeholder": "" }
+          ]
+        },
+        {
+          "id": "ms_understanding_questions",
+          "type": "instruction",
+          "heading": "Understanding questions",
+          "body": "When the part feels somewhat settled — proceed to these:\n\n• What is your job? What are you here to do for me?\n• What are you trying to protect me from?\n• What are you most afraid would happen if you stopped doing your job?\n• What do you most want for me?\n• What do you need me to know?\n• What do you wish I understood about you?"
+        },
+        {
+          "id": "ms_understanding_responses",
+          "type": "multi_prompt",
+          "heading": "Record what you heard",
+          "fields": [
+            { "id": "ms_job", "label": "What is its job — what is it here to do?", "placeholder": "" },
+            { "id": "ms_protecting", "label": "What is it protecting you from?", "placeholder": "" },
+            { "id": "ms_afraid", "label": "What does it fear would happen if it stopped?", "placeholder": "" },
+            { "id": "ms_wants_for_you", "label": "What does it most want for you?", "placeholder": "" },
+            { "id": "ms_needs_known", "label": "What does it need you to know?", "placeholder": "" }
+          ]
+        },
+        {
+          "id": "ms_relationship_questions",
+          "type": "instruction",
+          "heading": "Relationship questions",
+          "body": "If the visit is going well and the part seems willing:\n\n• How do you feel about the other parts?\n• Are there parts you work with closely? Parts you're in conflict with?\n• How do you feel about me — about the Self?\n• Do you trust me? If not — what would help you trust me more?\n• How do you feel when I'm not listening to you?"
+        },
+        {
+          "id": "ms_relationship_responses",
+          "type": "multi_prompt",
+          "heading": "Record relationship responses",
+          "fields": [
+            { "id": "ms_other_parts", "label": "How does it feel about other parts?", "placeholder": "" },
+            { "id": "ms_allies_conflicts", "label": "Parts it works with, or is in conflict with:", "placeholder": "" },
+            { "id": "ms_feels_about_self", "label": "How does it feel about you / about the Self?", "placeholder": "" },
+            { "id": "ms_trust", "label": "Does it trust you? What would help?", "placeholder": "" }
+          ]
+        },
+        {
+          "id": "ms_depth_questions",
+          "type": "instruction",
+          "heading": "Depth questions",
+          "body": "Only bring these when you've established genuine connection and the part seems willing to go deeper. Don't rush. These are the harder questions.\n\n• What are you most afraid of?\n• What is the worst thing you believe about me, or about the world?\n• What are you carrying that doesn't actually belong to you?\n• Is there something painful you've been holding for a long time?\n• What would you do if you didn't have to do this job anymore?\n• What would your life look like if you were free?\n\nIf working with an exile, approach these questions with extra care and a steady Self-presence. If the material feels too intense, slow down or pause the session."
+        },
+        {
+          "id": "ms_depth_responses",
+          "type": "multi_prompt",
+          "heading": "Record depth responses",
+          "instruction": "Record whatever came — even fragments or impressions.",
+          "fields": [
+            { "id": "ms_deepest_fear", "label": "What is it most afraid of?", "placeholder": "" },
+            { "id": "ms_worst_belief", "label": "What does it believe — about you or the world?", "placeholder": "" },
+            { "id": "ms_carrying", "label": "What might it be carrying that doesn't belong to it?", "placeholder": "" },
+            { "id": "ms_if_free", "label": "What would it do if it didn't have to do this job?", "placeholder": "" }
+          ]
+        },
+        {
+          "id": "ms_closing_questions",
+          "type": "instruction",
+          "heading": "Close the visit well",
+          "body": "Always close a Meeting Space session with care. Don't just stop — let the part know the visit is ending:\n\n• Is there anything else you want me to know before I go?\n• What do you need from me between now and the next time we meet?\n• How are you feeling right now, having shared this with me?\n\nThank the part. Let it know you'll return. Then come back to your breath, and slowly open your eyes."
+        },
+        {
+          "id": "ms_closing_responses",
+          "type": "multi_prompt",
+          "heading": "Record closing exchange",
+          "fields": [
+            { "id": "ms_last_thing", "label": "Anything the part wanted you to know before leaving:", "placeholder": "" },
+            { "id": "ms_needs_between", "label": "What does it need from you before the next visit:", "placeholder": "" },
+            { "id": "ms_part_feeling", "label": "How did the part seem to feel at the close of the visit:", "placeholder": "" }
+          ]
+        },
+        {
+          "id": "ms_overall",
+          "type": "free_text",
+          "heading": "Overall impressions",
+          "prompt": "Anything else that came up — images, feelings, body sensations, surprises, things you don't fully understand yet:",
+          "placeholder": "Write whatever came, even if it seems strange or unclear...",
+          "required": false
+        },
+        {
+          "id": "ms_closing",
+          "type": "closing",
+          "heading": "What comes next",
+          "body": "The Meeting Space isn't a one-time event. Parts deepen over multiple visits. The first visit establishes contact. Later visits go further. Each time you return, the relationship has more history — more trust, more depth, more capacity.\n\nWhat you've recorded here flows into this part's profile. You'll see the threads you can follow next time.",
+          "save_to": "elaboration_sessions",
+          "update_part_profile": true,
+          "next_technique_suggestion": null,
+          "_note": "Session data should populate part_profiles fields: name/custom_name (if provided), age estimate, appearance description, fears, beliefs, protective_purpose. Flag any exile_signal content for therapist review if applicable."
+        }
+      ]
+    }
+
+  ]
+}

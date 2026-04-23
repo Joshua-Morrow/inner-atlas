@@ -1,0 +1,93 @@
+{
+  "_notes": {
+    "purpose": "Warm description paragraphs for each Naming Moment. Displayed on full-screen transition after each cluster. Written in second-person experiential language — warm, non-clinical, lived. No IFS terminology shown. Read before name chips appear.",
+    "structure_of_each_moment": "intro (the pattern described in felt terms) + protective_reframe (this part has a job) + required_language (exact phrases per spec) + bridge (into naming)",
+    "updatable": true,
+    "version": "1.0",
+    "_important": "The 'required_phrases' fields must appear verbatim in the UI somewhere in the naming moment. The 'description' fields are the paragraph body — rewrite freely as your clinical language evolves."
+  },
+
+  "clusterA": {
+    "label": "Standards & Effort",
+    "heading": "There's a part of you that holds the bar.",
+    "description": "You know the one. The part that's watching when you work — checking, evaluating, sometimes raising the standard just as you're about to reach it. It notices every gap between where you are and where you think you should be. It might sound like an internal coach, or a disappointed voice, or just a low hum of not quite yet. It's been with you for a long time. And it's been working hard — probably harder than you've ever acknowledged.",
+    "protective_reframe": "This part didn't show up to torture you. It showed up because at some point, staying on top of things felt like the safest way to move through the world. High standards were its way of protecting you — from failure, from judgment, from something that felt worse than the effort.",
+    "required_phrases": [
+      "This part is not its standards. Those are a role it took on.",
+      "This part has been working very hard for a very long time."
+    ],
+    "bridge": "Before we give it a name — what does it feel like to recognize it as a part? Not you. Something that's been trying to help. Take a moment with that. Then, when you're ready, let's name it.",
+    "naming_prompt": "What name fits this part? You can use one of these, or give it your own."
+  },
+
+  "clusterB": {
+    "label": "Relief & Escape",
+    "heading": "There's a part of you that finds the exit.",
+    "description": "When things get to be too much — when the pressure reaches a certain point — this part knows exactly what to do. It has a reliable move. Maybe it's a behavior, a habit, a place it goes, something it reaches for. The thing is, it works. It relieves something. That's the whole point. This part isn't random — it's strategic. It found something that interrupts the feeling, and it uses it. Over and over, because it had to.",
+    "protective_reframe": "This part didn't start as a problem. It started as a solution. Somewhere, something was too much to bear in the moment, and this part stepped in to make it survivable. That's not weakness. That's what protective parts do when there's nothing else available. It's been carrying that job ever since.",
+    "required_phrases": [
+      "This part is not its behavior. That's what it learned to do.",
+      "This part has been working very hard for a very long time."
+    ],
+    "bridge": "This part often gets a lot of judgment — from others, maybe from another part of you. But right now, we're just meeting it. Not fixing it. Just acknowledging that it exists, and that it has a reason. When you're ready, let's give it a name.",
+    "naming_prompt": "What name fits this part? You can use one of these, or give it your own.",
+    "_note_no_shame": "Cluster B must NOT include any language suggesting the relief behavior is problematic, weak, or something to overcome. Keep this entirely non-judgmental."
+  },
+
+  "clusterC": {
+    "label": "Connection & Relationships",
+    "heading": "There's a part of you that keeps watch over your relationships.",
+    "description": "It monitors the temperature. It notices when someone seems off, when there's tension in the air, when you might have said something wrong. It adjusts. It softens edges, smooths things over, turns toward people when they're struggling — even when you're struggling too. This part works constantly in the background of your relationships, and most of the time, you don't even notice it's doing it. It just feels like you.",
+    "protective_reframe": "This part learned that closeness has conditions — that staying connected requires effort, adjustment, sometimes self-erasure. So it got very good at managing the relational field. It didn't do this because you're weak or overly anxious. It did this because connection mattered — enough to protect at significant cost.",
+    "required_phrases": [
+      "This part is not its role in relationships. That's a job it took on.",
+      "This part has been working very hard for a very long time."
+    ],
+    "bridge": "There's often a lot of tenderness toward this part when people meet it — because it's been giving so much for so long. See if you can sense that. Then, when you're ready, let's give it a name.",
+    "naming_prompt": "What name fits this part? You can use one of these, or give it your own."
+  },
+
+  "clusterD_critic": {
+    "label": "The Voice Inside — Inner Critic present",
+    "heading": "There's a part of you that keeps a running commentary.",
+    "description": "The voice that notices what you did wrong before you've even finished doing it. The one that can take a moment of success and find the flaw in it before you've had time to feel good. It evaluates, compares, anticipates criticism — sometimes by delivering it first. It can be harsh. It can be relentless. And it has probably been with you for so long that you've stopped noticing how loud it actually is.",
+    "protective_reframe": "Here's something that might be surprising: this voice is trying to protect you. Not kindly, not skillfully — but sincerely. It learned, somewhere, that if it criticized you first, it could prevent something worse. External criticism. Failure. Humiliation. Rejection. It got out in front of all of it by making sure you never got comfortable, never rested, never forgot the gap between where you are and where you should be.",
+    "required_phrases": [
+      "This part is not its criticism. That voice took on a job.",
+      "This part has been working very hard for a very long time."
+    ],
+    "bridge": "This part often feels like the most unwelcome guest in the whole system. But it showed up for a reason. It's been trying, in its way, to keep you safe. When you're ready, let's give it a name.",
+    "naming_prompt": "What name fits this part? You can use one of these, or give it your own."
+  },
+
+  "clusterD_exile_placement": {
+    "label": "Shadowed Exile Node — no naming prompt",
+    "heading": null,
+    "_note": "This is NOT a naming moment. There is no naming prompt. This is a silent placement that seeds the first cliffhanger. The node appears on the map during the Three-Screen Reveal — not here. No on-screen text accompanies this placement during the assessment. The Three-Screen Reveal is where the user first notices the unnamed node.",
+    "map_node_label": "Unknown — waiting to be known",
+    "map_tooltip_on_tap": "This part hasn't been discovered yet. The Tender Places can reveal what's here.",
+    "reveal_copy": "There's something else in your system. Something that the other parts have been working very hard to protect — or cover over. It doesn't have a name yet. But it's here.",
+    "_placement_logic": "Placed silently when clusterD exile_signal_high questions score above threshold. Appears in Three-Screen Reveal as pulsing node in fog, no name label, dotted line connecting to clusterD named part."
+  },
+
+  "three_screen_reveal": {
+    "screen1": {
+      "heading": "Your system, as far as we can see it.",
+      "body": "Each of these parts has been with you for a long time — working, watching, protecting. This is what they look like from the outside.",
+      "subtext": "There's more in the fog. You'll find it as you go."
+    },
+    "screen2": {
+      "heading_template": "[partA_name] and [partB_name].",
+      "body_template": "[partA_name] holds the line. When it can't hold it anymore, [partB_name] steps in. They're not working against each other. They're protecting the same thing.",
+      "subtext": "That's not a problem. That's loyalty.",
+      "_note": "Dynamically generate using Phase 3 inference to select most clinically meaningful pair. Frame as protective chain, not conflict."
+    },
+    "screen3": {
+      "heading": "There's more here.",
+      "body": "What made these connections necessary? What happened that made this system the one that got built? That question is worth following.",
+      "subtext": "The fog holds the rest. Some of it is waiting to be found.",
+      "cta_button": "Explore the fog",
+      "_note_on_exile_node": "If shadowed exile node was placed: pulse it slowly during this screen. Do not label it. Do not reference it explicitly in copy. Let the user notice it."
+    }
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "name": "inner-atlas",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "start": "cd apps/mobile && npx expo start",
+    "android": "cd apps/mobile && npx expo start --android",
+    "ios": "cd apps/mobile && npx expo start --ios",
+    "web": "cd apps/mobile && npx expo start --web"
+  }
+}

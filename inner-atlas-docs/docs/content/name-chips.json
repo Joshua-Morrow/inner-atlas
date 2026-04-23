@@ -1,0 +1,165 @@
+{
+  "_notes": {
+    "purpose": "Suggested name chips for each Naming Moment. Displayed as tappable chips after the description paragraph. Progression: functional (what it does) → evocative (how it feels) → personal (a name). Always followed by an open text field. User can select any chip or type their own. The chosen name becomes the part's displayName.",
+    "chip_count": "5-6 chips per cluster. Final chip is always a common human name to open the 'personal' register.",
+    "updatable": true,
+    "version": "1.0",
+    "_on_revision": "Chips are cheap to change. After running the assessment yourself and with clients, revise any that don't land. The functional names should feel recognizable. The evocative names should feel slightly surprising but true. The personal names should feel warm and human."
+  },
+
+  "clusterA": {
+    "label": "Standards & Effort",
+    "chips": [
+      {
+        "value": "The Standard-Keeper",
+        "register": "functional",
+        "note": "Direct, neutral — describes what the part does. Good anchor for people who don't yet relate to the part as a being."
+      },
+      {
+        "value": "The Driver",
+        "register": "functional",
+        "note": "More kinetic — suggests momentum and pressure. Works well for people who feel this part as energy or push."
+      },
+      {
+        "value": "The Watchman",
+        "register": "evocative",
+        "note": "Implies constant vigilance — a part that never fully rests."
+      },
+      {
+        "value": "The Iron Fist",
+        "register": "evocative",
+        "note": "For people who experience this part as harsh or relentless — names the severity without shame."
+      },
+      {
+        "value": "The Taskmaster",
+        "register": "evocative",
+        "note": "Familiar idiom that captures the demanding quality."
+      },
+      {
+        "value": "Alex",
+        "register": "personal",
+        "note": "Gender-neutral human name — opens the door to relating to this part as a person, not just a function."
+      }
+    ],
+    "open_field_prompt": "Or give it your own name"
+  },
+
+  "clusterB": {
+    "label": "Relief & Escape",
+    "chips": [
+      {
+        "value": "The Pressure Valve",
+        "register": "functional",
+        "note": "Mechanical — captures the release function without judgment. Good for people who experience this part as involuntary."
+      },
+      {
+        "value": "The Escape Artist",
+        "register": "functional",
+        "note": "Slightly playful — names the skill without shaming it. Works well when the person has some affection for this part."
+      },
+      {
+        "value": "The Relief-Seeker",
+        "register": "functional",
+        "note": "Neutral, accurate, emphasizes the intent not the behavior."
+      },
+      {
+        "value": "The Unraveler",
+        "register": "evocative",
+        "note": "Suggests what happens when this part takes over — things loosen, come undone."
+      },
+      {
+        "value": "The One Who Needs a Break",
+        "register": "evocative",
+        "note": "Humanizing — reminds the user this part is exhausted, not just impulsive."
+      },
+      {
+        "value": "Riley",
+        "register": "personal",
+        "note": "Gender-neutral, approachable — invites the user to see this part as a specific being with a history."
+      }
+    ],
+    "open_field_prompt": "Or give it your own name",
+    "_note": "No chips here should reference the specific behavior (drinking, eating, spending). Keep it behavior-agnostic."
+  },
+
+  "clusterC": {
+    "label": "Connection & Relationships",
+    "chips": [
+      {
+        "value": "The Accommodator",
+        "register": "functional",
+        "note": "Neutral, accurate — describes the core move without judgment."
+      },
+      {
+        "value": "The Peacekeeper",
+        "register": "functional",
+        "note": "Familiar term that most people immediately recognize in themselves."
+      },
+      {
+        "value": "The Bridge-Builder",
+        "register": "functional",
+        "note": "More positive framing — good when the person experiences this part as genuinely caring, not just anxious."
+      },
+      {
+        "value": "The Sentinel",
+        "register": "evocative",
+        "note": "For the part that monitors more than it accommodates — the watchful, alert quality."
+      },
+      {
+        "value": "The One Who Holds It Together",
+        "register": "evocative",
+        "note": "Captures the exhausted, quietly heroic quality many people feel about this part."
+      },
+      {
+        "value": "Jordan",
+        "register": "personal",
+        "note": "Gender-neutral, grounded — brings warmth to a part that often feels invisible."
+      }
+    ],
+    "open_field_prompt": "Or give it your own name"
+  },
+
+  "clusterD_critic": {
+    "label": "The Voice Inside",
+    "chips": [
+      {
+        "value": "The Critic",
+        "register": "functional",
+        "note": "Simple, direct — most people immediately recognize it. Sometimes the most honest name is the right name."
+      },
+      {
+        "value": "The Inner Judge",
+        "register": "functional",
+        "note": "Slightly more formal — works well for people who experience this part as issuing verdicts."
+      },
+      {
+        "value": "The Harsh One",
+        "register": "evocative",
+        "note": "For people whose inner critic is punishing more than coaching — names the severity directly."
+      },
+      {
+        "value": "The Overseer",
+        "register": "evocative",
+        "note": "Implies surveillance and control — good for people who feel this part as omnipresent."
+      },
+      {
+        "value": "The Voice",
+        "register": "evocative",
+        "note": "Sometimes the simplest name is the most accurate. Good for people who don't yet have distance from this part."
+      },
+      {
+        "value": "Sam",
+        "register": "personal",
+        "note": "Everyday human name — deliberately ordinary to contrast with the weight of the part's role."
+      }
+    ],
+    "open_field_prompt": "Or give it your own name"
+  },
+
+  "micro_capture": {
+    "_note": "Displayed after each naming confirmation. Free text only — no chips. Stored in assessment_naming_moments.feel_towards. Never scored, never shown back to user as analysis.",
+    "prompt_template": "How do you feel toward [chosen_name] right now?",
+    "placeholder": "Curious, grateful, tired, wary, something else entirely...",
+    "subtext": "There's no right answer. Just notice."
+  }
+}
