@@ -21,7 +21,7 @@ const SCREEN = Dimensions.get('window');
 const CANVAS_CENTER_X = SCREEN.width / 2;
 const CANVAS_CENTER_Y = SCREEN.height / 2;
 
-const DEV_SHOW_HIT_AREAS = false; // flip true to debug hit areas on device
+const DEV_SHOW_HIT_AREAS = true; // flip true to debug hit areas on device
 
 const HULL_COLORS = {
   alliance:         { fill: '#4A9B73', stroke: '#3A8A63' },

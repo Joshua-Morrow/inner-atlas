@@ -15,7 +15,7 @@
  *   5. Collision resolution — guarantees no node-on-node overlap
  *
  * Cooling schedule: temperature decreases linearly from initialTemperature → 1.
- * Convergence: break early when total kinetic energy < nodes.length * 0.5.
+ * Convergence: break early when total kinetic energy < nodes.length * 0.1.
  */
 
 export interface LayoutNode {
