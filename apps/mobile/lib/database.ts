@@ -632,6 +632,7 @@ export interface MapRelationship {
   name: string;
   type: string; // polarization | alliance
   member_part_ids: string[];
+  member_sides: (string | null)[];
 }
 
 export async function getMapRelationships(): Promise<MapRelationship[]> {
@@ -645,13 +646,17 @@ export async function getMapRelationships(): Promise<MapRelationship[]> {
     const orderBy = rel.type === 'activation_chain'
       ? 'ORDER BY CAST(side AS INTEGER) ASC'
       : '';
-    const members = await db.getAllAsync<{ part_id: string }>(
-      `SELECT part_id FROM relationship_members
+    const members = await db.getAllAsync<{ part_id: string; side: string | null }>(
+      `SELECT part_id, side FROM relationship_members
        WHERE relationship_id = ? AND member_type = 'part' AND part_id IS NOT NULL
        ${orderBy}`,
       [rel.id],
     );
-    result.push({ ...rel, member_part_ids: members.map((m) => m.part_id) });
+    result.push({
+      ...rel,
+      member_part_ids: members.map(m => m.part_id),
+      member_sides: members.map(m => m.side),
+    });
   }
   return result;
 }

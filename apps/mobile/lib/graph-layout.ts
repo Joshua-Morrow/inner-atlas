@@ -291,7 +291,7 @@ export function routeAroundObstacles(
     const px = x1 + ux * t * len;
     const py = y1 + uy * t * len;
     const perpDist = Math.hypot(obs.x - px, obs.y - py);
-    if (perpDist < obs.radius + padding * 0.8) {
+    if (perpDist < obs.radius + padding * 0.9) {
       intersecting.push({ obs, t });
     }
   }
@@ -387,31 +387,33 @@ export function hullToSmoothPath(
   hull: Array<{ x: number; y: number }>,
   tension: number = 0.4,
 ): string {
-  if (hull.length < 2) return '';
-  if (hull.length === 2) {
-    return `M ${hull[0].x},${hull[0].y} L ${hull[1].x},${hull[1].y} Z`;
+  const n = hull.length;
+  if (n < 2) return '';
+  if (n === 2) {
+    return `M ${hull[0].x.toFixed(1)},${hull[0].y.toFixed(1)} ` +
+           `L ${hull[1].x.toFixed(1)},${hull[1].y.toFixed(1)} Z`;
   }
 
-  const n = hull.length;
-  const pts = [...hull, hull[0], hull[1]]; // wrap around
+  // Wrapping point accessor — avoids mixed-indexing bugs
+  const pt = (i: number) => hull[((i % n) + n) % n];
 
-  let d = `M ${hull[0].x.toFixed(1)},${hull[0].y.toFixed(1)}`;
+  let d = `M ${pt(0).x.toFixed(1)},${pt(0).y.toFixed(1)}`;
 
   for (let i = 0; i < n; i++) {
-    const p0 = pts[i];
-    const p1 = pts[i + 1];
-    const p2 = pts[(i + 2) % n];
+    const p0 = pt(i - 1); // previous
+    const p1 = pt(i);     // start of this segment
+    const p2 = pt(i + 1); // end of this segment
+    const p3 = pt(i + 2); // after end
 
-    // Catmull-Rom → cubic bezier conversion
-    const cp1x = p1.x - (p2.x - p0.x) * tension / 2;
-    const cp1y = p1.y - (p2.y - p0.y) * tension / 2;
+    // Catmull-Rom → cubic bezier control points for segment p1 → p2
+    const cp1x = p1.x + (p2.x - p0.x) * tension / 3;
+    const cp1y = p1.y + (p2.y - p0.y) * tension / 3;
+    const cp2x = p2.x - (p3.x - p1.x) * tension / 3;
+    const cp2y = p2.y - (p3.y - p1.y) * tension / 3;
 
-    const p0b = pts[i > 0 ? i - 1 : n - 1] ?? p0;
-    const cp2x = p1.x + (p2.x - p0b.x) * tension / 2;
-    const cp2y = p1.y + (p2.y - p0b.y) * tension / 2;
-
-    const next = pts[i + 1];
-    d += ` C ${cp1x.toFixed(1)},${cp1y.toFixed(1)} ${cp2x.toFixed(1)},${cp2y.toFixed(1)} ${next.x.toFixed(1)},${next.y.toFixed(1)}`;
+    d += ` C ${cp1x.toFixed(1)},${cp1y.toFixed(1)} ` +
+             `${cp2x.toFixed(1)},${cp2y.toFixed(1)} ` +
+             `${p2.x.toFixed(1)},${p2.y.toFixed(1)}`;
   }
 
   return d + ' Z';

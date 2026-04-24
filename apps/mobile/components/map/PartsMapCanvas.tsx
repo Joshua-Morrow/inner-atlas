@@ -61,9 +61,10 @@ function computeInitialLayout(
     if (!placed.has(part.id)) { groups.push([part.id]); placed.add(part.id); }
   }
 
-  const BASE_RING_RADIUS = 160;
-  const RING_SPACING = 130;
-  const GROUP_MEMBER_SPREAD = 70;
+  const CANVAS_DIAG = Math.hypot(SCREEN.width, SCREEN.height);
+  const BASE_RING_RADIUS = CANVAS_DIAG * 0.28;
+  const RING_SPACING     = CANVAS_DIAG * 0.22;
+  const GROUP_MEMBER_SPREAD = 65;
   const totalGroups = groups.length;
 
   groups.forEach((group, groupIndex) => {
@@ -101,7 +102,7 @@ function computeForceLayout(
 ): Map<string, { x: number; y: number }> {
   const layoutNodes: LayoutNode[] = parts.map(part => {
     const intensity = part.intensity ?? 5;
-    const radius = getNodeSize(part.type, intensity) + 18;
+    const radius = getNodeSize(part.type, intensity) + 45;
     const isSelf = part.type === 'self' || part.id === '__self__';
 
     if (isSelf) {
@@ -134,8 +135,8 @@ function computeForceLayout(
         layoutEdges.push({
           fromId: rel.member_part_ids[i],
           toId: rel.member_part_ids[i + 1],
-          restLength: 85,
-          stiffness: 0.14,
+          restLength: 90,
+          stiffness: 0.09,
         });
       }
     } else if (rel.type === 'alliance') {
@@ -145,8 +146,8 @@ function computeForceLayout(
           layoutEdges.push({
             fromId: rel.member_part_ids[i],
             toId: rel.member_part_ids[j],
-            restLength: 90,
-            stiffness: 0.12,
+            restLength: 95,
+            stiffness: 0.07,
           });
         }
       }
@@ -156,8 +157,8 @@ function computeForceLayout(
           layoutEdges.push({
             fromId: rel.member_part_ids[i],
             toId: rel.member_part_ids[j],
-            restLength: 240,
-            stiffness: 0.04,
+            restLength: 260,
+            stiffness: 0.035,
           });
         }
       }
@@ -181,7 +182,10 @@ function computeForceLayout(
     height: SCREEN.height,
     centerX: CANVAS_CENTER_X,
     centerY: CANVAS_CENTER_Y,
-    iterations: 300,
+    iterations: 400,
+    repulsionStrength: 28000,
+    centeringForce: 0.002,
+    initialTemperature: 60,
   });
 
   return result.positions;
@@ -293,16 +297,16 @@ export default function PartsMapCanvas({
   layoutResetKey,
 }: Props) {
   const [pan, setPan] = useState({ x: 0, y: 0 });
-  const [scale, setScale] = useState(1);
+  const [scale, setScale] = useState(0.75);
   const [draggingPartId, setDraggingPartId] = useState<string | null>(null);
   const [dragTick, setDragTick] = useState(0);
 
   const panRef               = useRef({ x: 0, y: 0 });
-  const scaleRef             = useRef(1);
+  const scaleRef             = useRef(0.75);
   const draggingPartIdRef    = useRef<string | null>(null);
   const dragStartPos         = useRef<{ x: number; y: number } | null>(null);
   const lastPan              = useRef({ x: 0, y: 0 });
-  const lastScale            = useRef(1);
+  const lastScale            = useRef(0.75);
   const lastTouchDist        = useRef<number | null>(null);
   const isDragging           = useRef(false);
   const wasPinching          = useRef(false);
@@ -545,7 +549,7 @@ export default function PartsMapCanvas({
         id: part.id,
         x: pos.x,
         y: pos.y,
-        radius: isSelf ? visualR + 20 : visualR,
+        radius: isSelf ? visualR + 35 : visualR,
       });
     }
 
@@ -553,7 +557,7 @@ export default function PartsMapCanvas({
     const selfPartForCP = parts.find(p => p.type === 'self' || p.id === '__self__');
     const selfPosForCP = selfPartForCP ? nodePositions.current.get(selfPartForCP.id) : null;
     const selfClearance = selfPartForCP
-      ? getNodeSize(selfPartForCP.type, selfPartForCP.intensity ?? 5) + 28
+      ? getNodeSize(selfPartForCP.type, selfPartForCP.intensity ?? 5) + 45
       : 0;
 
     // Build edge specs — sequential pairs for activation_chain, all-pairs for others
@@ -567,6 +571,61 @@ export default function PartsMapCanvas({
             relType: rel.type,
             relId: rel.id,
           });
+        }
+      } else if (rel.type === 'polarization') {
+        const sideA = rel.member_part_ids.filter((_, i) => rel.member_sides[i] === 'a');
+        const sideB = rel.member_part_ids.filter((_, i) => rel.member_sides[i] === 'b');
+        const nullSide = rel.member_part_ids.filter((_, i) => !rel.member_sides[i]);
+
+        if (sideA.length === 0 || sideB.length === 0) {
+          // Fallback: old all-pairs if sides not recorded
+          for (let i = 0; i < rel.member_part_ids.length; i++) {
+            for (let j = i + 1; j < rel.member_part_ids.length; j++) {
+              specs.push({ fromId: rel.member_part_ids[i], toId: rel.member_part_ids[j], relType: rel.type, relId: rel.id });
+            }
+          }
+        } else if (sideA.length === 1 && sideB.length === 1) {
+          specs.push({ fromId: sideA[0], toId: sideB[0], relType: rel.type, relId: rel.id });
+        } else if (sideA.length === 1) {
+          for (const b of sideB) {
+            specs.push({ fromId: sideA[0], toId: b, relType: rel.type, relId: rel.id });
+          }
+        } else if (sideB.length === 1) {
+          for (const a of sideA) {
+            specs.push({ fromId: a, toId: sideB[0], relType: rel.type, relId: rel.id });
+          }
+        } else {
+          // Group vs group — nearest representative of each side
+          const centroid = (ids: string[]) => {
+            const positions = ids.map(id => nodePositions.current.get(id)).filter(Boolean) as { x: number; y: number }[];
+            if (positions.length === 0) return null;
+            return { x: positions.reduce((s, p) => s + p.x, 0) / positions.length, y: positions.reduce((s, p) => s + p.y, 0) / positions.length };
+          };
+          const nearestTo = (ids: string[], target: { x: number; y: number }) => {
+            let best = ids[0];
+            let bestDist = Infinity;
+            for (const id of ids) {
+              const pos = nodePositions.current.get(id);
+              if (!pos) continue;
+              const d = Math.hypot(pos.x - target.x, pos.y - target.y);
+              if (d < bestDist) { bestDist = d; best = id; }
+            }
+            return best;
+          };
+          const ca = centroid(sideA);
+          const cb = centroid(sideB);
+          if (ca && cb) {
+            const repA = nearestTo(sideA, cb);
+            const repB = nearestTo(sideB, ca);
+            specs.push({ fromId: repA, toId: repB, relType: rel.type, relId: rel.id });
+          }
+        }
+        // Null-side members (old data): connect to nearest other member
+        for (const id of nullSide) {
+          if (rel.member_part_ids.length > 1) {
+            const other = rel.member_part_ids.find(x => x !== id);
+            if (other) specs.push({ fromId: id, toId: other, relType: rel.type, relId: rel.id });
+          }
         }
       } else {
         for (let i = 0; i < rel.member_part_ids.length; i++) {
@@ -620,7 +679,7 @@ export default function PartsMapCanvas({
 
       const hull = convexHull(memberPositions);
       const expanded = expandHull(hull, 18);
-      const pathD = hullToSmoothPath(expanded, 0.4);
+      const pathD = hullToSmoothPath(expanded, 0.35);
       if (!pathD) continue;
 
       const colors = HULL_COLORS[rel.type as keyof typeof HULL_COLORS];
@@ -731,7 +790,7 @@ export default function PartsMapCanvas({
 
         elements.push(
           <Path
-            key={`${spec.relId}-${idx}`}
+            key={`sp-${spec.relId}-${idx}`}
             d={pathD}
             fill="none"
             stroke={color}
@@ -760,7 +819,7 @@ export default function PartsMapCanvas({
           }
           elements.push(
             <Circle
-              key={`chain-arrow-${spec.relId}-${idx}`}
+              key={`ca-${spec.relId}-${idx}`}
               cx={arrowX}
               cy={arrowY}
               r={4.5}
@@ -781,16 +840,16 @@ export default function PartsMapCanvas({
       const LBL_H = 13;
       const placedLabels: Array<{ x: number; y: number; w: number; h: number }> = [];
 
-      for (const fe of feelingEdges) {
+      feelingEdges.forEach((fe, feIdx) => {
         const posA = nodePositions.current.get(fe.from_part_id);
         const posB = nodePositions.current.get(fe.to_part_id);
-        if (!posA || !posB) continue;
+        if (!posA || !posB) return;
 
         const feelings: string[] = (() => {
           try { return JSON.parse(fe.feelings_json) as string[]; }
           catch { return []; }
         })();
-        if (feelings.length === 0) continue;
+        if (feelings.length === 0) return;
 
         const edgeConnected =
           !focusedPartId ||
@@ -903,7 +962,7 @@ export default function PartsMapCanvas({
         const showLabel = edgeConnected && label.length > 0;
 
         elements.push(
-          <G key={`feeling-${fe.id}`}>
+          <G key={`fe-${feIdx}`}>
             <Path
               d={pathD}
               fill="none"
@@ -944,7 +1003,7 @@ export default function PartsMapCanvas({
             )}
           </G>,
         );
-      }
+      });
     }
 
     return [...hullElements, ...elements];

@@ -2199,3 +2199,17 @@ Pending device verification of Clusters B–D, Phase 3. Or next feature build.
 - `editImageBtn`: width/height 32→40, added `zIndex: 10`, `hitSlop` on TouchableOpacity
 - `addImageBtn`: paddingHorizontal 10→14, paddingVertical 5→8, `backgroundColor` darkened, added `zIndex: 10`, `hitSlop` on TouchableOpacity
 
+---
+
+## Session: 2026-04-24 — Parts Map Fix Batch A: Keys, Hulls, Polarization, Zoom, Spacing, Self Routing
+
+**Files changed:** `lib/database.ts`, `lib/graph-layout.ts`, `components/map/PartsMapCanvas.tsx`
+
+- **Duplicate React key fix:** Structural `<Path>` keys namespaced `sp-${relId}-${idx}`; chain arrow `<Circle>` keys namespaced `ca-${relId}-${idx}`; feeling edge `<G>` loop converted from `for…of` to `forEach((fe, feIdx) =>` with `key="fe-${feIdx}"` and `continue` → `return`. Eliminates potential hull-vs-edge ID collision and ensures unique keys across all SVG children.
+- **hullToSmoothPath fixed:** Rewrote with correct Catmull-Rom→cubic bezier using a wrapping `pt(i)` accessor; removed mixed-indexing bug where `p2` used `(i+2)%n` into original hull while `p0b` used `i-1` into extended `pts` array. Control point formula corrected: `cp1 = p1 + (p2-p0)*t/3`, `cp2 = p2 - (p3-p1)*t/3`. Call site tension updated `0.4→0.35`.
+- **`routeAroundObstacles` threshold:** `padding * 0.8 → 0.9` for more aggressive obstacle detection.
+- **Polarization group-vs-group rendering:** `database.ts`: `MapRelationship` extended with `member_sides: (string|null)[]`; `getMapRelationships` now selects `side` column. `PartsMapCanvas.tsx` edges useMemo: 1v1 = single line; 1vN = one line per group member; NvM = nearest representative of each side (centroid-nearest). Old null-side data falls back to all-pairs.
+- **Default zoom 0.75:** `useState(1)→0.75`, `useRef(1)→0.75` for `scaleRef` and `lastScale`.
+- **Spacing improvements:** Repulsion `8000→28000`; centering `0.005→0.002`; `iterations 300→400`; `initialTemperature 60`. Collision radius `+18→+45` px. Alliance spring stiffness `0.12→0.07` restLength `90→95`; chain `0.14→0.09` / `85→90`; polarization `0.04→0.035` / `240→260`. Seed radii: `CANVAS_DIAG*0.28` / `CANVAS_DIAG*0.22`.
+- **Self routing clearance:** Obstacle radius `+20→+35`; `selfClearance` `+28→+45`.
+
