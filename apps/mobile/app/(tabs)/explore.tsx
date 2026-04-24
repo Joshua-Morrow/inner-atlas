@@ -12,6 +12,7 @@ import { useCallback, useRef, useState } from 'react';
 import { Alert, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 
 import {
   FeelingEdge,
@@ -58,6 +59,39 @@ const REL_LEGEND = [
 
 type MapViewMode = 'atlas' | 'feelings' | 'combined';
 
+// DEV: set true to show force layout tuning panel
+const SHOW_DEV_SETTINGS = false;
+
+function MapDevSlider({
+  label, value, min, max, step, onChange,
+}: {
+  label: string; value: number; min: number; max: number;
+  step: number; onChange: (v: number) => void;
+}) {
+  return (
+    <View style={styles.devSliderRow}>
+      <Text style={styles.devSliderLabel}>{label}</Text>
+      <TouchableOpacity
+        style={styles.devStepBtn}
+        onPress={() => onChange(Math.max(min, parseFloat((value - step).toFixed(4))))}
+        activeOpacity={0.7}
+      >
+        <Text style={styles.devStepBtnText}>−</Text>
+      </TouchableOpacity>
+      <Text style={styles.devSliderValue}>
+        {value < 1 ? value.toFixed(3) : value.toFixed(0)}
+      </Text>
+      <TouchableOpacity
+        style={styles.devStepBtn}
+        onPress={() => onChange(Math.min(max, parseFloat((value + step).toFixed(4))))}
+        activeOpacity={0.7}
+      >
+        <Text style={styles.devStepBtnText}>+</Text>
+      </TouchableOpacity>
+    </View>
+  );
+}
+
 export default function MapScreen() {
   const { mode } = useLocalSearchParams<{ mode?: string }>();
   const [parts, setParts]               = useState<MapPart[]>([]);
@@ -69,6 +103,18 @@ export default function MapScreen() {
   const [hasCustomPositions, setHasCustomPositions] = useState(false);
   const [layoutResetKey, setLayoutResetKey] = useState(0);
   const [focusedPartId, setFocusedPartId] = useState<string | null>(null);
+  const [legendVisible, setLegendVisible] = useState(true);
+  const [devSettingsPanelOpen, setDevSettingsPanelOpen] = useState(false);
+  const [devRepulsion,    setDevRepulsion]    = useState(28000);
+  const [devCentering,    setDevCentering]    = useState(0.002);
+  const [devCollision,    setDevCollision]    = useState(45);
+  const [devIterations,   setDevIterations]   = useState(400);
+  const [devInitTemp,     setDevInitTemp]     = useState(60);
+  const [devAllianceRest, setDevAllianceRest] = useState(95);
+  const [devAllianceStiff, setDevAllianceStiff] = useState(0.07);
+  const [devChainRest,    setDevChainRest]    = useState(90);
+  const [devChainStiff,   setDevChainStiff]   = useState(0.09);
+  const [devPolarRest,    setDevPolarRest]    = useState(260);
   const prevRelIdsRef = useRef<Set<string>>(new Set());
 
   const buildDisplayParts = useCallback((dbParts: MapPart[]): MapPart[] => {
@@ -224,76 +270,151 @@ export default function MapScreen() {
           onPartPress={handlePartPress}
           onHasCustomPositionsChange={setHasCustomPositions}
           layoutResetKey={layoutResetKey}
+          devLayoutParams={SHOW_DEV_SETTINGS ? {
+            repulsionStrength: devRepulsion,
+            centeringForce: devCentering,
+            collisionPadding: devCollision,
+            iterations: devIterations,
+            initialTemperature: devInitTemp,
+            allianceRestLength: devAllianceRest,
+            allianceStiffness: devAllianceStiff,
+            chainRestLength: devChainRest,
+            chainStiffness: devChainStiff,
+            polarRestLength: devPolarRest,
+          } : undefined}
         />
       )}
 
       {/* Legend overlay */}
       {realPartsCount > 0 && (
-        <View style={styles.legendContainer} pointerEvents="none">
-          {/* Node type legend */}
-          <View style={styles.legendCard}>
-            <Text style={styles.legendTitle}>Parts</Text>
-            {NODE_LEGEND.map((item) => (
-              <View key={item.label} style={styles.legendRow}>
-                <View style={[styles.legendDot, { backgroundColor: item.color }]} />
-                <Text style={styles.legendLabel}>{item.label}</Text>
-              </View>
-            ))}
-          </View>
+        <View style={styles.legendContainer} pointerEvents="box-none">
+          {/* Toggle button — always visible */}
+          <TouchableOpacity
+            style={styles.legendToggleBtn}
+            onPress={() => setLegendVisible(v => !v)}
+            activeOpacity={0.7}
+          >
+            <Ionicons
+              name={legendVisible ? 'layers' : 'layers-outline'}
+              size={18}
+              color={legendVisible ? '#E8E6E1' : '#6B6860'}
+            />
+          </TouchableOpacity>
 
-          {/* Relationship line legend — switches with viewMode */}
-          <View style={[styles.legendCard, { marginTop: 6 }]}>
-            <Text style={styles.legendTitle}>Connections</Text>
-            {viewMode === 'combined' ? (
-              <>
-                {REL_LEGEND.map((item) => (
+          {legendVisible && (
+            <>
+              {/* Node type legend */}
+              <View style={[styles.legendCard, { marginTop: 6 }]}>
+                <Text style={styles.legendTitle}>Parts</Text>
+                {NODE_LEGEND.map((item) => (
                   <View key={item.label} style={styles.legendRow}>
-                    <View style={styles.legendLineWrap}>
-                      {item.hull ? (
-                        <View style={[styles.legendHullSwatch, { borderColor: item.color, backgroundColor: item.color + '18' }]} />
-                      ) : item.dash ? (
-                        <View style={[styles.legendLineDash, { borderBottomColor: item.color }]} />
-                      ) : (
-                        <View style={[styles.legendLineSolid, { backgroundColor: item.color }]} />
-                      )}
-                    </View>
+                    <View style={[styles.legendDot, { backgroundColor: item.color }]} />
                     <Text style={styles.legendLabel}>{item.label}</Text>
                   </View>
                 ))}
-                <View style={styles.legendRow}>
-                  <View style={styles.legendLineWrap}>
-                    <View style={[styles.legendLineSolid, { backgroundColor: '#9B7A4A' }]} />
-                  </View>
-                  <Text style={styles.legendLabel}>Feeling connection</Text>
-                </View>
-              </>
-            ) : viewMode === 'atlas' ? (
-              REL_LEGEND.map((item) => (
-                <View key={item.label} style={styles.legendRow}>
-                  <View style={styles.legendLineWrap}>
-                    {item.hull ? (
-                      <View style={[styles.legendHullSwatch, { borderColor: item.color, backgroundColor: item.color + '18' }]} />
-                    ) : item.dash ? (
-                      <View style={[styles.legendLineDash, { borderBottomColor: item.color }]} />
-                    ) : (
-                      <View style={[styles.legendLineSolid, { backgroundColor: item.color }]} />
-                    )}
-                  </View>
-                  <Text style={styles.legendLabel}>{item.label}</Text>
-                </View>
-              ))
-            ) : (
-              <>
-                <View style={styles.legendRow}>
-                  <View style={styles.legendLineWrap}>
-                    <View style={[styles.legendLineSolid, { backgroundColor: '#9B7A4A' }]} />
-                  </View>
-                  <Text style={styles.legendLabel}>Feeling connection</Text>
-                </View>
-                <Text style={styles.legendNote}>Alliances/polarizations faded</Text>
-              </>
-            )}
-          </View>
+              </View>
+
+              {/* Relationship line legend — switches with viewMode */}
+              <View style={[styles.legendCard, { marginTop: 6 }]}>
+                <Text style={styles.legendTitle}>Connections</Text>
+                {viewMode === 'combined' ? (
+                  <>
+                    {REL_LEGEND.map((item) => (
+                      <View key={item.label} style={styles.legendRow}>
+                        <View style={styles.legendLineWrap}>
+                          {item.hull ? (
+                            <View style={[styles.legendHullSwatch, { borderColor: item.color, backgroundColor: item.color + '18' }]} />
+                          ) : item.dash ? (
+                            <View style={[styles.legendLineDash, { borderBottomColor: item.color }]} />
+                          ) : (
+                            <View style={[styles.legendLineSolid, { backgroundColor: item.color }]} />
+                          )}
+                        </View>
+                        <Text style={styles.legendLabel}>{item.label}</Text>
+                      </View>
+                    ))}
+                    <View style={styles.legendRow}>
+                      <View style={styles.legendLineWrap}>
+                        <View style={[styles.legendLineSolid, { backgroundColor: '#9B7A4A' }]} />
+                      </View>
+                      <Text style={styles.legendLabel}>Feeling connection</Text>
+                    </View>
+                  </>
+                ) : viewMode === 'atlas' ? (
+                  REL_LEGEND.map((item) => (
+                    <View key={item.label} style={styles.legendRow}>
+                      <View style={styles.legendLineWrap}>
+                        {item.hull ? (
+                          <View style={[styles.legendHullSwatch, { borderColor: item.color, backgroundColor: item.color + '18' }]} />
+                        ) : item.dash ? (
+                          <View style={[styles.legendLineDash, { borderBottomColor: item.color }]} />
+                        ) : (
+                          <View style={[styles.legendLineSolid, { backgroundColor: item.color }]} />
+                        )}
+                      </View>
+                      <Text style={styles.legendLabel}>{item.label}</Text>
+                    </View>
+                  ))
+                ) : (
+                  <>
+                    <View style={styles.legendRow}>
+                      <View style={styles.legendLineWrap}>
+                        <View style={[styles.legendLineSolid, { backgroundColor: '#9B7A4A' }]} />
+                      </View>
+                      <Text style={styles.legendLabel}>Feeling connection</Text>
+                    </View>
+                    <Text style={styles.legendNote}>Alliances/polarizations faded</Text>
+                  </>
+                )}
+              </View>
+            </>
+          )}
+        </View>
+      )}
+
+      {/* Dev settings panel */}
+      {SHOW_DEV_SETTINGS && realPartsCount > 0 && (
+        <View style={styles.devSettingsContainer} pointerEvents="box-none">
+          <TouchableOpacity
+            style={styles.devSettingsBtn}
+            onPress={() => setDevSettingsPanelOpen(v => !v)}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="settings-outline" size={20} color="#E8E6E1" />
+          </TouchableOpacity>
+
+          {devSettingsPanelOpen && (
+            <View style={styles.devSettingsPanel}>
+              <Text style={styles.devSettingsTitle}>⚙ Layout Forces</Text>
+
+              <MapDevSlider label="Repulsion"      value={devRepulsion}     min={5000}  max={80000} step={1000}  onChange={setDevRepulsion}    />
+              <MapDevSlider label="Centering"      value={devCentering}     min={0.001} max={0.02}  step={0.001} onChange={setDevCentering}    />
+              <MapDevSlider label="Collision pad"  value={devCollision}     min={10}    max={100}   step={5}     onChange={setDevCollision}    />
+              <MapDevSlider label="Iterations"     value={devIterations}    min={100}   max={1000}  step={50}    onChange={setDevIterations}   />
+              <MapDevSlider label="Init temp"      value={devInitTemp}      min={10}    max={200}   step={5}     onChange={setDevInitTemp}     />
+              <MapDevSlider label="Alliance rest"  value={devAllianceRest}  min={40}    max={300}   step={5}     onChange={setDevAllianceRest} />
+              <MapDevSlider label="Alliance stiff" value={devAllianceStiff} min={0.01}  max={0.3}   step={0.01}  onChange={setDevAllianceStiff}/>
+              <MapDevSlider label="Chain rest"     value={devChainRest}     min={40}    max={300}   step={5}     onChange={setDevChainRest}    />
+              <MapDevSlider label="Chain stiff"    value={devChainStiff}    min={0.01}  max={0.3}   step={0.01}  onChange={setDevChainStiff}   />
+              <MapDevSlider label="Polar rest"     value={devPolarRest}     min={100}   max={600}   step={10}    onChange={setDevPolarRest}    />
+
+              <Text style={styles.devReadout}>
+                {`rep:${devRepulsion} ctr:${devCentering.toFixed(3)}\n` +
+                 `col:${devCollision} iter:${devIterations} temp:${devInitTemp}\n` +
+                 `alliR:${devAllianceRest} alliS:${devAllianceStiff}\n` +
+                 `chnR:${devChainRest} chnS:${devChainStiff}\n` +
+                 `polR:${devPolarRest}`}
+              </Text>
+
+              <TouchableOpacity
+                style={styles.devApplyBtn}
+                onPress={() => setLayoutResetKey(k => k + 1)}
+                activeOpacity={0.85}
+              >
+                <Text style={styles.devApplyBtnText}>Apply &amp; Reset Layout</Text>
+              </TouchableOpacity>
+            </View>
+          )}
         </View>
       )}
 
@@ -438,6 +559,99 @@ const styles = StyleSheet.create({
     height: 12,
     borderRadius: 4,
     borderWidth: 1.5,
+  },
+  legendToggleBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(26,25,23,0.88)',
+    borderWidth: 1,
+    borderColor: '#2A2927',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  devSettingsContainer: {
+    position: 'absolute',
+    bottom: 24,
+    right: 16,
+    alignItems: 'flex-end',
+    zIndex: 100,
+  },
+  devSettingsBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(26,25,23,0.9)',
+    borderWidth: 1,
+    borderColor: '#3A3835',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  devSettingsPanel: {
+    backgroundColor: 'rgba(15,14,12,0.95)',
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: '#3A3835',
+    minWidth: 220,
+    gap: 4,
+  },
+  devSettingsTitle: {
+    fontSize: 12,
+    fontWeight: '700' as const,
+    color: '#B88A00',
+    marginBottom: 6,
+  },
+  devSliderRow: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: 6,
+  },
+  devSliderLabel: {
+    fontSize: 10,
+    color: 'rgba(255,255,255,0.55)',
+    width: 80,
+  },
+  devStepBtn: {
+    width: 24,
+    height: 24,
+    borderRadius: 4,
+    backgroundColor: '#2A2927',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  devStepBtnText: {
+    fontSize: 14,
+    color: '#FFFFFF',
+    fontWeight: '700' as const,
+    lineHeight: 18,
+  },
+  devSliderValue: {
+    fontSize: 10,
+    color: '#FFFFFF',
+    fontWeight: '600' as const,
+    width: 44,
+    textAlign: 'center' as const,
+  },
+  devReadout: {
+    fontSize: 9,
+    color: 'rgba(255,255,255,0.4)',
+    fontFamily: 'monospace',
+    marginTop: 6,
+    lineHeight: 14,
+  },
+  devApplyBtn: {
+    backgroundColor: '#B88A00',
+    borderRadius: 8,
+    paddingVertical: 8,
+    alignItems: 'center',
+    marginTop: 6,
+  },
+  devApplyBtnText: {
+    fontSize: 12,
+    fontWeight: '700' as const,
+    color: '#1A1917',
   },
   toggleContainer: {
     flexDirection: 'row',

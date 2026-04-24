@@ -41,9 +41,10 @@ interface Props {
   isSelected: boolean;
   isDragging: boolean;
   dimmed?: boolean;
+  chainPositions?: number[];
 }
 
-const PartsMapNode = memo(({ part, x, y, isSelected, isDragging, dimmed }: Props) => {
+const PartsMapNode = memo(({ part, x, y, isSelected, isDragging, dimmed, chainPositions }: Props) => {
   const isFreed    = part.type === 'freed';
   const isSelf     = part.type === 'self';
   const isShadowed = part.status === 'shadowed' || part.status === 'unknown';
@@ -318,6 +319,40 @@ const PartsMapNode = memo(({ part, x, y, isSelected, isDragging, dimmed }: Props
           stroke="#1A1917"
           strokeWidth={1}
         />
+      )}
+
+      {/* Badge — chain position (upper-right corner, above refined diamond) */}
+      {chainPositions && chainPositions.length > 0 && !isShadowed && (
+        <>
+          <Circle
+            cx={size * 0.75}
+            cy={-size * 0.85}
+            r={8}
+            fill="#B88A00"
+            stroke="#1A1917"
+            strokeWidth={1.5}
+          />
+          <SvgText
+            x={size * 0.75}
+            y={-size * 0.85 + 3}
+            textAnchor="middle"
+            fontSize={8}
+            fontWeight="700"
+            fill="#FFFFFF"
+          >
+            {chainPositions[0]}
+          </SvgText>
+          {chainPositions.length > 1 && (
+            <Circle
+              cx={size * 0.75 + 10}
+              cy={-size * 0.85}
+              r={5}
+              fill="#8A6A00"
+              stroke="#1A1917"
+              strokeWidth={1}
+            />
+          )}
+        </>
       )}
 
     </G>

@@ -21,7 +21,7 @@ const SCREEN = Dimensions.get('window');
 const CANVAS_CENTER_X = SCREEN.width / 2;
 const CANVAS_CENTER_Y = SCREEN.height / 2;
 
-const DEV_SHOW_HIT_AREAS = true; // flip true to debug hit areas on device
+const DEV_SHOW_HIT_AREAS = false;
 
 const HULL_COLORS = {
   alliance:         { fill: '#4A9B73', stroke: '#3A8A63' },
@@ -95,14 +95,39 @@ function computeInitialLayout(
 
 // ─── Force layout ─────────────────────────────────────────────────────────────
 
+interface DevLayoutParams {
+  repulsionStrength: number;
+  centeringForce: number;
+  collisionPadding: number;
+  iterations: number;
+  initialTemperature: number;
+  allianceRestLength: number;
+  allianceStiffness: number;
+  chainRestLength: number;
+  chainStiffness: number;
+  polarRestLength: number;
+}
+
 function computeForceLayout(
   parts: MapPart[],
   relationships: MapRelationship[],
   existingPositions: Map<string, { x: number; y: number }>,
+  params?: DevLayoutParams,
 ): Map<string, { x: number; y: number }> {
+  const repulsion     = params?.repulsionStrength  ?? 28000;
+  const centering     = params?.centeringForce     ?? 0.002;
+  const colPadding    = params?.collisionPadding   ?? 45;
+  const iters         = params?.iterations         ?? 400;
+  const initTemp      = params?.initialTemperature ?? 60;
+  const allianceRest  = params?.allianceRestLength ?? 95;
+  const allianceStiff = params?.allianceStiffness  ?? 0.07;
+  const chainRest     = params?.chainRestLength    ?? 90;
+  const chainStiff    = params?.chainStiffness     ?? 0.09;
+  const polarRest     = params?.polarRestLength    ?? 260;
+
   const layoutNodes: LayoutNode[] = parts.map(part => {
     const intensity = part.intensity ?? 5;
-    const radius = getNodeSize(part.type, intensity) + 45;
+    const radius = getNodeSize(part.type, intensity) + colPadding;
     const isSelf = part.type === 'self' || part.id === '__self__';
 
     if (isSelf) {
@@ -135,8 +160,8 @@ function computeForceLayout(
         layoutEdges.push({
           fromId: rel.member_part_ids[i],
           toId: rel.member_part_ids[i + 1],
-          restLength: 90,
-          stiffness: 0.09,
+          restLength: chainRest,
+          stiffness: chainStiff,
         });
       }
     } else if (rel.type === 'alliance') {
@@ -146,8 +171,8 @@ function computeForceLayout(
           layoutEdges.push({
             fromId: rel.member_part_ids[i],
             toId: rel.member_part_ids[j],
-            restLength: 95,
-            stiffness: 0.07,
+            restLength: allianceRest,
+            stiffness: allianceStiff,
           });
         }
       }
@@ -157,7 +182,7 @@ function computeForceLayout(
           layoutEdges.push({
             fromId: rel.member_part_ids[i],
             toId: rel.member_part_ids[j],
-            restLength: 260,
+            restLength: polarRest,
             stiffness: 0.035,
           });
         }
@@ -182,10 +207,10 @@ function computeForceLayout(
     height: SCREEN.height,
     centerX: CANVAS_CENTER_X,
     centerY: CANVAS_CENTER_Y,
-    iterations: 400,
-    repulsionStrength: 28000,
-    centeringForce: 0.002,
-    initialTemperature: 60,
+    iterations: iters,
+    repulsionStrength: repulsion,
+    centeringForce: centering,
+    initialTemperature: initTemp,
   });
 
   return result.positions;
@@ -281,6 +306,7 @@ interface Props {
   onPartPress: (part: MapPart | null) => void;
   onHasCustomPositionsChange: (has: boolean) => void;
   layoutResetKey?: number;
+  devLayoutParams?: DevLayoutParams;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -295,6 +321,7 @@ export default function PartsMapCanvas({
   onPartPress,
   onHasCustomPositionsChange,
   layoutResetKey,
+  devLayoutParams,
 }: Props) {
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [scale, setScale] = useState(0.75);
@@ -316,6 +343,8 @@ export default function PartsMapCanvas({
   const onHasCustomRef       = useRef(onHasCustomPositionsChange);
   const nodePositions        = useRef<Map<string, { x: number; y: number }>>(new Map());
   const prevResetKey         = useRef<number | undefined>(undefined);
+  const containerOffsetY     = useRef(0);
+  const containerRef         = useRef<View>(null);
 
   useEffect(() => { partsRef.current = parts; }, [parts]);
   useEffect(() => { onPartPressRef.current = onPartPress; }, [onPartPress]);
@@ -343,7 +372,7 @@ export default function PartsMapCanvas({
       }
     }
 
-    const forcePositions = computeForceLayout(parts, relationships, nodePositions.current);
+    const forcePositions = computeForceLayout(parts, relationships, nodePositions.current, devLayoutParams);
     for (const [id, pos] of forcePositions) {
       nodePositions.current.set(id, pos);
     }
@@ -371,6 +400,20 @@ export default function PartsMapCanvas({
     return set;
   }, [focusedPartId, relationships, feelingEdges]);
 
+  // ── Chain membership badges ───────────────────────────────────────────────────
+
+  const chainBadges = useMemo(() => {
+    const badges = new Map<string, number[]>();
+    for (const rel of relationships) {
+      if (rel.type !== 'activation_chain') continue;
+      rel.member_part_ids.forEach((id, idx) => {
+        if (!badges.has(id)) badges.set(id, []);
+        badges.get(id)!.push(idx + 1);
+      });
+    }
+    return badges;
+  }, [relationships]);
+
   // ── PanResponder ─────────────────────────────────────────────────────────────
 
   const panResponder = useRef(
@@ -386,7 +429,7 @@ export default function PartsMapCanvas({
         lastTouchDist.current = null;
 
         const touchX = evt.nativeEvent.pageX;
-        const touchY = evt.nativeEvent.pageY;
+        const touchY = evt.nativeEvent.pageY - containerOffsetY.current;
         longPressTimer.current = setTimeout(() => {
           const cx = (touchX - lastPan.current.x) / lastScale.current;
           const cy = (touchY - lastPan.current.y) / lastScale.current;
@@ -493,7 +536,7 @@ export default function PartsMapCanvas({
         const totalMove = Math.hypot(gs.dx, gs.dy);
         if (totalMove < 10 && !wasPinching.current) {
           const touchX = (gs.moveX !== 0 || gs.moveY !== 0) ? gs.moveX : gs.x0;
-          const touchY = (gs.moveX !== 0 || gs.moveY !== 0) ? gs.moveY : gs.y0;
+          const touchY = ((gs.moveX !== 0 || gs.moveY !== 0) ? gs.moveY : gs.y0) - containerOffsetY.current;
           const canvasX = (touchX - panRef.current.x) / scaleRef.current;
           const canvasY = (touchY - panRef.current.y) / scaleRef.current;
 
@@ -513,15 +556,6 @@ export default function PartsMapCanvas({
             const ddy = canvasY - hitCenterY;
             const normalized = Math.hypot(ddx / size, ddy / hitRadiusY);
             if (normalized < 1.0 && normalized < closestNorm) { closestNorm = normalized; closest = part; }
-          }
-
-          if (__DEV__) {
-            console.log('[HitTest]', {
-              canvasX: canvasX.toFixed(1),
-              canvasY: canvasY.toFixed(1),
-              closest: closest?.display_name ?? 'none',
-              closestNorm: closestNorm.toFixed(3),
-            });
           }
 
           if (closest) onPartPressRef.current(closest);
@@ -1013,7 +1047,18 @@ export default function PartsMapCanvas({
   // ── Render ────────────────────────────────────────────────────────────────────
 
   return (
-    <View style={styles.container} {...panResponder.panHandlers}>
+    <View
+      ref={containerRef}
+      style={styles.container}
+      {...panResponder.panHandlers}
+      onLayout={() => {
+        setTimeout(() => {
+          containerRef.current?.measure((_x, _y, _w, _h, _pageX, pageY) => {
+            containerOffsetY.current = pageY;
+          });
+        }, 100);
+      }}
+    >
       <Svg
         width={SCREEN.width}
         height={SCREEN.height}
@@ -1036,6 +1081,7 @@ export default function PartsMapCanvas({
                 isSelected={selectedPartId === part.id}
                 isDragging={draggingPartId === part.id}
                 dimmed={dimmed}
+                chainPositions={chainBadges.get(part.id)}
               />
             );
           })}
