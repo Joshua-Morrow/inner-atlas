@@ -58,7 +58,7 @@ export const FEEL_TOWARDS_SELF_QUALITIES = [
 export const FEEL_TOWARDS_REACTIVE = [
   'Frustrated', 'Confused', 'Afraid', 'Angry', 'Judgmental', 'Disgusted', 'Hopeless',
   'Skeptical', 'Distant', 'Numb', 'Overwhelmed', 'Protective', 'Anxious',
-  'Irritated', 'Impatient', 'Resigned', 'Resentful', 'Guilty', 'Ashamed',
+  'Irritated', 'Annoyed', 'Impatient', 'Resigned', 'Resentful', 'Guilty', 'Ashamed',
   'Indifferent', 'Disappointed', 'Tired', 'Exhausted',
 ];
 

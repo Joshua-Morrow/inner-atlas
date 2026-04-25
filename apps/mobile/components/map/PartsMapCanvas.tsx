@@ -1,12 +1,14 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Dimensions, PanResponder, StyleSheet, View } from 'react-native';
-import Svg, { Circle, Ellipse, G, Path, Rect, Text as SvgText } from 'react-native-svg';
+import Svg, { Ellipse, G, Path, Rect, Text as SvgText } from 'react-native-svg';
 
 import { FeelingEdge, MapPart, MapRelationship, savePartMapPosition } from '@/lib/database';
 import {
   LayoutEdge,
   LayoutNode,
   Obstacle,
+  arrowheadPath,
+  bezierTangentAngle,
   clipLineToNodeBoundaries,
   convexHull,
   expandHull,
@@ -286,6 +288,22 @@ function buildEdgePath(
     `Q ${waypoints[0].x.toFixed(1)},${waypoints[0].y.toFixed(1)} ${mx.toFixed(1)},${my.toFixed(1)}`,
     `Q ${waypoints[1].x.toFixed(1)},${waypoints[1].y.toFixed(1)} ${x2.toFixed(1)},${y2.toFixed(1)}`,
   ].join(' ');
+}
+
+function extractCubicCP(pathD: string): {
+  cp1x: number; cp1y: number; cp2x: number; cp2y: number;
+  x0: number; y0: number; x1: number; y1: number;
+} | null {
+  const m = pathD.match(
+    /M\s*([\d.\-]+),([\d.\-]+)\s+C\s*([\d.\-]+),([\d.\-]+)\s+([\d.\-]+),([\d.\-]+)\s+([\d.\-]+),([\d.\-]+)/,
+  );
+  if (!m) return null;
+  return {
+    x0:   parseFloat(m[1]), y0:   parseFloat(m[2]),
+    cp1x: parseFloat(m[3]), cp1y: parseFloat(m[4]),
+    cp2x: parseFloat(m[5]), cp2y: parseFloat(m[6]),
+    x1:   parseFloat(m[7]), y1:   parseFloat(m[8]),
+  };
 }
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -840,6 +858,7 @@ export default function PartsMapCanvas({
     }
 
     // ── Structural edges ──────────────────────────────────────────────────────
+    let globalEdgeIdx = 0;
     pairGroups.forEach((group) => {
       group.forEach((spec, idx) => {
         const posA = nodePositions.current.get(spec.fromId);
@@ -905,7 +924,7 @@ export default function PartsMapCanvas({
 
         elements.push(
           <Path
-            key={`sp-${spec.relId}-${idx}`}
+            key={`sp-${globalEdgeIdx}`}
             d={pathD}
             fill="none"
             stroke={color}
@@ -932,17 +951,26 @@ export default function PartsMapCanvas({
             arrowX = mxWp + t * (clipped.x2 - mxWp);
             arrowY = myWp + t * (clipped.y2 - myWp);
           }
-          elements.push(
-            <Circle
-              key={`ca-${spec.relId}-${idx}`}
-              cx={arrowX}
-              cy={arrowY}
-              r={4.5}
-              fill={color}
-              opacity={opacity}
-            />,
-          );
+          {
+            const cb = extractCubicCP(pathD);
+            const angleDeg = cb
+              ? bezierTangentAngle(cb.x0, cb.y0, cb.cp1x, cb.cp1y, cb.cp2x, cb.cp2y, cb.x1, cb.y1, 0.85)
+              : (() => {
+                  const adx = clipped.x2 - clipped.x1;
+                  const ady = clipped.y2 - clipped.y1;
+                  return Math.atan2(ady, adx) * (180 / Math.PI);
+                })();
+            elements.push(
+              <Path
+                key={`ca-${globalEdgeIdx}`}
+                d={arrowheadPath(arrowX, arrowY, angleDeg, 7)}
+                fill={color}
+                opacity={opacity}
+              />,
+            );
+          }
         }
+        globalEdgeIdx++;
       });
     });
 
@@ -983,7 +1011,6 @@ export default function PartsMapCanvas({
     const showFeelingEdges = viewMode === 'feelings' || viewMode === 'combined';
     if (showFeelingEdges) {
       const edgeColor = '#9B7A4A';
-      const arrowR = 4.5;
       const BIDIR_OFFSET = 7;
       const LBL_H = 13;
       const placedLabels: Array<{ x: number; y: number; w: number; h: number }> = [];
@@ -1119,10 +1146,14 @@ export default function PartsMapCanvas({
               strokeOpacity={edgeOpacity}
               strokeLinecap="round"
             />
-            <Circle
-              cx={arrowX}
-              cy={arrowY}
-              r={arrowR}
+            <Path
+              d={(() => {
+                const cb = extractCubicCP(pathD);
+                const angleDeg = cb
+                  ? bezierTangentAngle(cb.x0, cb.y0, cb.cp1x, cb.cp1y, cb.cp2x, cb.cp2y, cb.x1, cb.y1, 0.85)
+                  : Math.atan2(clippedFE.y2 - clippedFE.y1, clippedFE.x2 - clippedFE.x1) * (180 / Math.PI);
+                return arrowheadPath(arrowX, arrowY, angleDeg, 6);
+              })()}
               fill={edgeColor}
               opacity={edgeOpacity}
             />

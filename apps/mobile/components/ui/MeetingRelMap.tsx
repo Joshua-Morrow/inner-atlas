@@ -27,6 +27,8 @@ import {
   LayoutEdge,
   LayoutNode,
   Obstacle,
+  arrowheadPath,
+  bezierTangentAngle,
   clipLineToNodeBoundaries,
   routeAroundObstacles,
   runLayout,
@@ -82,6 +84,22 @@ function buildEdgePath(
 
 function isSelfNode(node: RelationalMap['nodes'][number]): boolean {
   return node.id === 'self' || node.partType === 'self';
+}
+
+function extractCubicCP(pathD: string): {
+  cp1x: number; cp1y: number; cp2x: number; cp2y: number;
+  x0: number; y0: number; x1: number; y1: number;
+} | null {
+  const m = pathD.match(
+    /M\s*([\d.\-]+),([\d.\-]+)\s+C\s*([\d.\-]+),([\d.\-]+)\s+([\d.\-]+),([\d.\-]+)\s+([\d.\-]+),([\d.\-]+)/,
+  );
+  if (!m) return null;
+  return {
+    x0:   parseFloat(m[1]), y0:   parseFloat(m[2]),
+    cp1x: parseFloat(m[3]), cp1y: parseFloat(m[4]),
+    cp2x: parseFloat(m[5]), cp2y: parseFloat(m[6]),
+    x1:   parseFloat(m[7]), y1:   parseFloat(m[8]),
+  };
 }
 
 // ─── Dev tuning stepper ───────────────────────────────────────────────────────
@@ -169,7 +187,7 @@ export function MeetingRelMap({ relMap, onContinue }: Props) {
   // ── Canvas sizing ─────────────────────────────────────────────────────────
 
   // Fixed portrait canvas — fills available screen space cleanly
-  const baseCanvasHeight = Math.round(canvasWidth * 1.45);
+  const baseCanvasHeight = Math.round(canvasWidth * 1.45 * 0.7);
   const canvasHeight = relMap.nodes.length > 8 ? baseCanvasHeight * 2 : baseCanvasHeight;
   const viewportHeight = baseCanvasHeight;
 
@@ -182,7 +200,7 @@ export function MeetingRelMap({ relMap, onContinue }: Props) {
     const cx = canvasWidth / 2;
     const cy = canvasHeight * 0.35;
 
-    const useRepulsion  = SHOW_DEV_TUNING ? devRepulsion  : 18000;
+    const useRepulsion  = SHOW_DEV_TUNING ? devRepulsion  : 36000;
     const useCentering  = SHOW_DEV_TUNING ? devCentering  : 0.003;
     const useSelfRest   = SHOW_DEV_TUNING ? devSelfRest   : 0.45;
     const useEdgeRest   = SHOW_DEV_TUNING ? devEdgeRest   : 130;
@@ -436,7 +454,17 @@ export function MeetingRelMap({ relMap, onContinue }: Props) {
           strokeOpacity={edgeOpacity}
           strokeLinecap="round"
         />
-        <Circle cx={arrowX} cy={arrowY} r={4.5} fill={dotColor} opacity={edgeOpacity} />
+        <Path
+          d={(() => {
+            const cb = extractCubicCP(pathD);
+            const angleDeg = cb
+              ? bezierTangentAngle(cb.x0, cb.y0, cb.cp1x, cb.cp1y, cb.cp2x, cb.cp2y, cb.x1, cb.y1, 0.85)
+              : Math.atan2(clipped.y2 - clipped.y1, clipped.x2 - clipped.x1) * (180 / Math.PI);
+            return arrowheadPath(arrowX, arrowY, angleDeg, 6);
+          })()}
+          fill={dotColor}
+          opacity={edgeOpacity}
+        />
         {label.length > 0 && edgeConnected && (
           <>
             <Rect

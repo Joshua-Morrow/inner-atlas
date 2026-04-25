@@ -474,3 +474,54 @@ export function hullBoundaryPoint(
 
   return bestPt;
 }
+
+/**
+ * Computes the angle (in degrees) of a cubic bezier curve at parameter t.
+ * Used to orient triangle arrowheads along the edge direction.
+ */
+export function bezierTangentAngle(
+  x0: number, y0: number,
+  cp1x: number, cp1y: number,
+  cp2x: number, cp2y: number,
+  x1: number, y1: number,
+  t: number,
+): number {
+  const mt = 1 - t;
+  const dx =
+    3 * mt * mt * (cp1x - x0) +
+    6 * mt * t  * (cp2x - cp1x) +
+    3 * t  * t  * (x1   - cp2x);
+  const dy =
+    3 * mt * mt * (cp1y - y0) +
+    6 * mt * t  * (cp2y - cp1y) +
+    3 * t  * t  * (y1   - cp2y);
+  return Math.atan2(dy, dx) * (180 / Math.PI);
+}
+
+/**
+ * Returns an SVG path string for a filled triangle arrowhead.
+ * The tip points in the given direction (angleDeg), centered at (cx, cy).
+ */
+export function arrowheadPath(
+  cx: number,
+  cy: number,
+  angleDeg: number,
+  size: number = 7,
+): string {
+  const rad = angleDeg * (Math.PI / 180);
+  const cos = Math.cos(rad);
+  const sin = Math.sin(rad);
+
+  const tipX  =  size * 1.0;  const tipY  = 0;
+  const baseL = -size * 0.9;  const baseLY = -size * 0.55;
+  const baseR = -size * 0.9;  const baseRY =  size * 0.55;
+
+  const tx = cx + cos * tipX  - sin * tipY;
+  const ty = cy + sin * tipX  + cos * tipY;
+  const lx = cx + cos * baseL - sin * baseLY;
+  const ly = cy + sin * baseL + cos * baseLY;
+  const rx = cx + cos * baseR - sin * baseRY;
+  const ry = cy + sin * baseR + cos * baseRY;
+
+  return `M ${tx.toFixed(1)},${ty.toFixed(1)} L ${lx.toFixed(1)},${ly.toFixed(1)} L ${rx.toFixed(1)},${ry.toFixed(1)} Z`;
+}
