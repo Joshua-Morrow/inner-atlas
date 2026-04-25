@@ -2,6 +2,18 @@
 
 ---
 
+## Session: 2026-04-24 — Map Prompt B: Polarization with Alliance Sides
+
+**Files changed:** `lib/graph-layout.ts`, `lib/database.ts`, `app/new-relationship.tsx`, `components/map/PartsMapCanvas.tsx`
+
+- `lib/graph-layout.ts`: Added `hullBoundaryPoint` exported helper — finds the point on a convex hull polygon boundary where a line from an external point toward the hull centroid intersects the hull perimeter. Used to terminate polarization lines at hull boundaries rather than hull centroids.
+- `lib/database.ts`: `MapRelationship` interface extended with `coalition_ids: (string | null)[]` parallel array. `getMapRelationships` rewritten to fetch all members (part AND coalition); part members emit their `part_id`; coalition members emit `'__coalition__'` sentinel into `member_part_ids` and the real alliance rel.id into `coalition_ids`. Old code only fetched `part_id IS NOT NULL` rows, silently dropping coalition members.
+- `app/new-relationship.tsx`: Polarization Step 3 extended with Individual/Alliance mode toggle per side. `AllianceRow` interface added; `allAlliances`, `sideAAllianceId`, `sideBAllianceId` state added; `useFocusEffect` now also loads alliances. `canContinue` polarization check updated (alliance OR ≥1 part = valid side). `handleCreate` polarization block writes coalition member rows (`member_type='coalition'`, `coalition_id=allianceId`) for alliance-side selections. `polStyles` StyleSheet added.
+- `components/map/PartsMapCanvas.tsx`: `hullBoundaryPoint` added to graph-layout import. `HullEdgeSpec` interface added. In `edges` useMemo: `allianceHulls` Map built before specs loop; `hullEdgeSpecs` array declared; polarization branch rewritten to detect coalition sides via `coalition_ids`, compute hull boundary draw points via `hullBoundaryPoint`, and push to `hullEdgeSpecs` when either side is an alliance hull. Hull edge specs rendered as dashed red quadratic bezier paths after structural edges. Existing individual-parts polarization behavior preserved unchanged.
+- TypeScript: Clean — only pre-existing `trailhead/session.tsx:623` error.
+
+---
+
 ## Session: 2026-04-23 — Parts Map: Group Hulls, Hit Area Fix, Line Quality, Combined Mode
 
 **Files changed:** `lib/graph-layout.ts`, `components/map/PartsMapCanvas.tsx`, `app/(tabs)/explore.tsx`, `components/map/NodeDetailSheet.tsx`

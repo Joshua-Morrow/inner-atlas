@@ -10,6 +10,7 @@ import {
   clipLineToNodeBoundaries,
   convexHull,
   expandHull,
+  hullBoundaryPoint,
   hullToSmoothPath,
   routeAroundObstacles,
   runLayout,
@@ -294,6 +295,15 @@ interface EdgeSpec {
   toId: string;
   relType: string;
   relId: string;
+}
+
+interface HullEdgeSpec {
+  fromPoint: { x: number; y: number };
+  toPoint: { x: number; y: number };
+  fromIsHull: boolean;
+  toIsHull: boolean;
+  relId: string;
+  relType: string;
 }
 
 interface Props {
@@ -594,7 +604,28 @@ export default function PartsMapCanvas({
       ? getNodeSize(selfPartForCP.type, selfPartForCP.intensity ?? 5) + 45
       : 0;
 
+    // Build alliance hull cache: allianceId → expanded hull points
+    const allianceHulls = new Map<string, Array<{ x: number; y: number }>>();
+    for (const rel of relationships) {
+      if (rel.type !== 'alliance') continue;
+      const memberPositions = rel.member_part_ids
+        .flatMap(id => {
+          const pos = nodePositions.current.get(id);
+          if (!pos) return [];
+          const part = parts.find(p => p.id === id);
+          const r = part ? getNodeSize(part.type, part.intensity ?? 5) : 22;
+          return Array.from({ length: 8 }, (_, i) => ({
+            x: pos.x + Math.cos((i / 8) * Math.PI * 2) * r,
+            y: pos.y + Math.sin((i / 8) * Math.PI * 2) * r,
+          }));
+        });
+      if (memberPositions.length < 3) continue;
+      const hull = convexHull(memberPositions);
+      allianceHulls.set(rel.id, expandHull(hull, 18));
+    }
+
     // Build edge specs — sequential pairs for activation_chain, all-pairs for others
+    const hullEdgeSpecs: HullEdgeSpec[] = [];
     const specs: EdgeSpec[] = [];
     for (const rel of relationships) {
       if (rel.type === 'activation_chain') {
@@ -607,57 +638,107 @@ export default function PartsMapCanvas({
           });
         }
       } else if (rel.type === 'polarization') {
-        const sideA = rel.member_part_ids.filter((_, i) => rel.member_sides[i] === 'a');
-        const sideB = rel.member_part_ids.filter((_, i) => rel.member_sides[i] === 'b');
-        const nullSide = rel.member_part_ids.filter((_, i) => !rel.member_sides[i]);
+        const sideAPartIds   = rel.member_part_ids.filter((id, i) =>
+          rel.member_sides[i] === 'a' && id !== '__coalition__');
+        const sideBPartIds   = rel.member_part_ids.filter((id, i) =>
+          rel.member_sides[i] === 'b' && id !== '__coalition__');
+        const sideACoalition = rel.coalition_ids.find((cid, i) =>
+          rel.member_sides[i] === 'a' && cid !== null) ?? null;
+        const sideBCoalition = rel.coalition_ids.find((cid, i) =>
+          rel.member_sides[i] === 'b' && cid !== null) ?? null;
+        const nullSide = rel.member_part_ids.filter((id, i) =>
+          !rel.member_sides[i] && id !== '__coalition__');
 
-        if (sideA.length === 0 || sideB.length === 0) {
-          // Fallback: old all-pairs if sides not recorded
+        const getSideCentroid = (partIds: string[], coalitionId: string | null) => {
+          if (coalitionId) {
+            const hull = allianceHulls.get(coalitionId);
+            if (!hull || hull.length === 0) return null;
+            return {
+              x: hull.reduce((s, p) => s + p.x, 0) / hull.length,
+              y: hull.reduce((s, p) => s + p.y, 0) / hull.length,
+            };
+          }
+          const positions = partIds
+            .map(id => nodePositions.current.get(id))
+            .filter(Boolean) as { x: number; y: number }[];
+          if (positions.length === 0) return null;
+          return {
+            x: positions.reduce((s, p) => s + p.x, 0) / positions.length,
+            y: positions.reduce((s, p) => s + p.y, 0) / positions.length,
+          };
+        };
+
+        const getSideDrawPoint = (
+          partIds: string[],
+          coalitionId: string | null,
+          oppositeCentroid: { x: number; y: number } | null,
+        ): { x: number; y: number; partId?: string } | null => {
+          if (coalitionId) {
+            const hull = allianceHulls.get(coalitionId);
+            if (!hull || !oppositeCentroid) return null;
+            return hullBoundaryPoint(hull, oppositeCentroid.x, oppositeCentroid.y);
+          }
+          if (partIds.length === 0) return null;
+          if (partIds.length === 1) {
+            const pos = nodePositions.current.get(partIds[0]);
+            return pos ? { ...pos, partId: partIds[0] } : null;
+          }
+          if (!oppositeCentroid) {
+            const pos = nodePositions.current.get(partIds[0]);
+            return pos ? { ...pos, partId: partIds[0] } : null;
+          }
+          let best = partIds[0];
+          let bestDist = Infinity;
+          for (const id of partIds) {
+            const pos = nodePositions.current.get(id);
+            if (!pos) continue;
+            const d = Math.hypot(pos.x - oppositeCentroid.x, pos.y - oppositeCentroid.y);
+            if (d < bestDist) { bestDist = d; best = id; }
+          }
+          const pos = nodePositions.current.get(best);
+          return pos ? { ...pos, partId: best } : null;
+        };
+
+        const sideAFallback = sideAPartIds.length === 0 && !sideACoalition;
+        const sideBFallback = sideBPartIds.length === 0 && !sideBCoalition;
+
+        if (sideAFallback || sideBFallback) {
+          // Old data fallback — all-pairs
           for (let i = 0; i < rel.member_part_ids.length; i++) {
             for (let j = i + 1; j < rel.member_part_ids.length; j++) {
-              specs.push({ fromId: rel.member_part_ids[i], toId: rel.member_part_ids[j], relType: rel.type, relId: rel.id });
+              const idA = rel.member_part_ids[i];
+              const idB = rel.member_part_ids[j];
+              if (idA === '__coalition__' || idB === '__coalition__') continue;
+              specs.push({ fromId: idA, toId: idB, relType: rel.type, relId: rel.id });
             }
-          }
-        } else if (sideA.length === 1 && sideB.length === 1) {
-          specs.push({ fromId: sideA[0], toId: sideB[0], relType: rel.type, relId: rel.id });
-        } else if (sideA.length === 1) {
-          for (const b of sideB) {
-            specs.push({ fromId: sideA[0], toId: b, relType: rel.type, relId: rel.id });
-          }
-        } else if (sideB.length === 1) {
-          for (const a of sideA) {
-            specs.push({ fromId: a, toId: sideB[0], relType: rel.type, relId: rel.id });
           }
         } else {
-          // Group vs group — nearest representative of each side
-          const centroid = (ids: string[]) => {
-            const positions = ids.map(id => nodePositions.current.get(id)).filter(Boolean) as { x: number; y: number }[];
-            if (positions.length === 0) return null;
-            return { x: positions.reduce((s, p) => s + p.x, 0) / positions.length, y: positions.reduce((s, p) => s + p.y, 0) / positions.length };
-          };
-          const nearestTo = (ids: string[], target: { x: number; y: number }) => {
-            let best = ids[0];
-            let bestDist = Infinity;
-            for (const id of ids) {
-              const pos = nodePositions.current.get(id);
-              if (!pos) continue;
-              const d = Math.hypot(pos.x - target.x, pos.y - target.y);
-              if (d < bestDist) { bestDist = d; best = id; }
+          const cA = getSideCentroid(sideAPartIds, sideACoalition);
+          const cB = getSideCentroid(sideBPartIds, sideBCoalition);
+          const ptA = getSideDrawPoint(sideAPartIds, sideACoalition, cB);
+          const ptB = getSideDrawPoint(sideBPartIds, sideBCoalition, cA);
+
+          if (ptA && ptB) {
+            if (sideACoalition || sideBCoalition) {
+              hullEdgeSpecs.push({
+                fromPoint: ptA,
+                toPoint: ptB,
+                fromIsHull: !!sideACoalition,
+                toIsHull: !!sideBCoalition,
+                relId: rel.id,
+                relType: rel.type,
+              });
+            } else {
+              const fromId = (ptA as { partId?: string }).partId ?? sideAPartIds[0];
+              const toId   = (ptB as { partId?: string }).partId ?? sideBPartIds[0];
+              specs.push({ fromId, toId, relType: rel.type, relId: rel.id });
             }
-            return best;
-          };
-          const ca = centroid(sideA);
-          const cb = centroid(sideB);
-          if (ca && cb) {
-            const repA = nearestTo(sideA, cb);
-            const repB = nearestTo(sideB, ca);
-            specs.push({ fromId: repA, toId: repB, relType: rel.type, relId: rel.id });
           }
         }
-        // Null-side members (old data): connect to nearest other member
+
         for (const id of nullSide) {
           if (rel.member_part_ids.length > 1) {
-            const other = rel.member_part_ids.find(x => x !== id);
+            const other = rel.member_part_ids.find(x => x !== id && x !== '__coalition__');
             if (other) specs.push({ fromId: id, toId: other, relType: rel.type, relId: rel.id });
           }
         }
@@ -863,6 +944,39 @@ export default function PartsMapCanvas({
           );
         }
       });
+    });
+
+    // ── Hull-to-hull polarization lines ──────────────────────────────────────
+    hullEdgeSpecs.forEach((hspec, hidx) => {
+      const { fromPoint, toPoint } = hspec;
+      const dx = toPoint.x - fromPoint.x;
+      const dy = toPoint.y - fromPoint.y;
+      const len = Math.hypot(dx, dy) || 1;
+      const perpX = -dy / len;
+      const perpY = dx / len;
+      const mx = (fromPoint.x + toPoint.x) / 2;
+      const my = (fromPoint.y + toPoint.y) / 2;
+      const curveOff = Math.min(len * 0.1, 20);
+      const cpx = mx + perpX * curveOff;
+      const cpy = my + perpY * curveOff;
+
+      let opacity = structuralBaseOpacity;
+      if (focusedPartId) opacity = 0.08;
+
+      const pathD = `M ${fromPoint.x.toFixed(1)},${fromPoint.y.toFixed(1)} Q ${cpx.toFixed(1)},${cpy.toFixed(1)} ${toPoint.x.toFixed(1)},${toPoint.y.toFixed(1)}`;
+
+      elements.push(
+        <Path
+          key={`hpol-${hspec.relId}-${hidx}`}
+          d={pathD}
+          fill="none"
+          stroke="#991B1B"
+          strokeWidth={2}
+          strokeDasharray="7,4"
+          strokeOpacity={opacity}
+          strokeLinecap="round"
+        />,
+      );
     });
 
     // ── Feeling edges (feelings + combined modes) ─────────────────────────────

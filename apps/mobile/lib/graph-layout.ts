@@ -418,3 +418,59 @@ export function hullToSmoothPath(
 
   return d + ' Z';
 }
+
+/**
+ * Returns the point on the hull polygon boundary where the line from
+ * (fromX, fromY) toward the hull centroid intersects the hull edge.
+ * Used to draw polarization lines that start/end at hull boundaries
+ * rather than hull centroids.
+ *
+ * Falls back to the hull centroid if no intersection is found.
+ */
+export function hullBoundaryPoint(
+  hull: Array<{ x: number; y: number }>,
+  fromX: number,
+  fromY: number,
+): { x: number; y: number } {
+  if (hull.length === 0) return { x: fromX, y: fromY };
+
+  const cx = hull.reduce((s, p) => s + p.x, 0) / hull.length;
+  const cy = hull.reduce((s, p) => s + p.y, 0) / hull.length;
+
+  const dx = cx - fromX;
+  const dy = cy - fromY;
+  const len = Math.hypot(dx, dy);
+  if (len < 0.001) return { x: cx, y: cy };
+
+  // Ray from centroid outward toward fromX,fromY
+  const rx = fromX - cx;
+  const ry = fromY - cy;
+
+  let bestT = Infinity;
+  let bestPt = { x: cx, y: cy };
+
+  const n = hull.length;
+  for (let i = 0; i < n; i++) {
+    const a = hull[i];
+    const b = hull[(i + 1) % n];
+
+    const edgeDx = b.x - a.x;
+    const edgeDy = b.y - a.y;
+
+    const denom = rx * edgeDy - ry * edgeDx;
+    if (Math.abs(denom) < 0.0001) continue;
+
+    const t = ((a.x - cx) * ry - (a.y - cy) * rx) / denom;
+    const s = ((a.x - cx) * edgeDy - (a.y - cy) * edgeDx) / denom;
+
+    if (t >= 0 && t <= 1 && s >= 0 && s < bestT) {
+      bestT = s;
+      bestPt = {
+        x: cx + s * rx,
+        y: cy + s * ry,
+      };
+    }
+  }
+
+  return bestPt;
+}

@@ -630,9 +630,11 @@ export async function setPartBurdened(
 export interface MapRelationship {
   id: string;
   name: string;
-  type: string; // polarization | alliance
+  type: string;
   member_part_ids: string[];
   member_sides: (string | null)[];
+  // Alliance rel.id at same index when that member slot references an alliance hull; null otherwise
+  coalition_ids: (string | null)[];
 }
 
 export async function getMapRelationships(): Promise<MapRelationship[]> {
@@ -642,21 +644,38 @@ export async function getMapRelationships(): Promise<MapRelationship[]> {
   );
   const result: MapRelationship[] = [];
   for (const rel of rels) {
-    // For activation chains, side stores position ('1','2',...) — order numerically.
     const orderBy = rel.type === 'activation_chain'
       ? 'ORDER BY CAST(side AS INTEGER) ASC'
       : '';
-    const members = await db.getAllAsync<{ part_id: string; side: string | null }>(
-      `SELECT part_id, side FROM relationship_members
-       WHERE relationship_id = ? AND member_type = 'part' AND part_id IS NOT NULL
+    const members = await db.getAllAsync<{
+      part_id: string | null;
+      coalition_id: string | null;
+      side: string | null;
+    }>(
+      `SELECT part_id, coalition_id, side FROM relationship_members
+       WHERE relationship_id = ?
        ${orderBy}`,
       [rel.id],
     );
-    result.push({
-      ...rel,
-      member_part_ids: members.map(m => m.part_id),
-      member_sides: members.map(m => m.side),
-    });
+
+    const member_part_ids: string[] = [];
+    const member_sides: (string | null)[] = [];
+    const coalition_ids: (string | null)[] = [];
+
+    for (const m of members) {
+      if (m.part_id) {
+        member_part_ids.push(m.part_id);
+        member_sides.push(m.side);
+        coalition_ids.push(null);
+      } else if (m.coalition_id) {
+        // Sentinel — canvas checks coalition_ids[i] to know this slot is an alliance ref
+        member_part_ids.push('__coalition__');
+        member_sides.push(m.side);
+        coalition_ids.push(m.coalition_id);
+      }
+    }
+
+    result.push({ ...rel, member_part_ids, member_sides, coalition_ids });
   }
   return result;
 }

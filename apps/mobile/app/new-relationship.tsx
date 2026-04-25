@@ -41,6 +41,11 @@ interface PartRow {
   type: PartType;
 }
 
+interface AllianceRow {
+  id: string;
+  name: string;
+}
+
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const TYPE_COLOR: Record<PartType, string> = {
@@ -209,6 +214,9 @@ export default function NewRelationshipScreen() {
   const [chainIds, setChainIds]         = useState<string[]>([]);
   const [selectorTarget, setSelectorTarget] = useState<SelectorTarget>(null);
   const [saving, setSaving]             = useState(false);
+  const [allAlliances, setAllAlliances]     = useState<AllianceRow[]>([]);
+  const [sideAAllianceId, setSideAAllianceId] = useState<string | null>(null);
+  const [sideBAllianceId, setSideBAllianceId] = useState<string | null>(null);
 
   useFocusEffect(
     useCallback(() => {
@@ -220,6 +228,13 @@ export default function NewRelationshipScreen() {
         )
         .then((rows) => setAllParts(rows))
         .catch((e) => console.error('[NewRelationship] load parts:', e));
+      getDatabase()
+        .getAllAsync<AllianceRow>(
+          `SELECT id, name FROM relationships WHERE type = 'alliance' ORDER BY created_at ASC`,
+          [],
+        )
+        .then((rows) => setAllAlliances(rows))
+        .catch(() => undefined);
     }, []),
   );
 
@@ -240,7 +255,11 @@ export default function NewRelationshipScreen() {
     if (step === 1) return relType !== null;
     if (step === 2) return name.trim().length > 0;
     if (step === 3) {
-      if (relType === 'polarization')      return sideAIds.length >= 1 && sideBIds.length >= 1;
+      if (relType === 'polarization') {
+        const sideAValid = sideAAllianceId !== null || sideAIds.length >= 1;
+        const sideBValid = sideBAllianceId !== null || sideBIds.length >= 1;
+        return sideAValid && sideBValid;
+      }
       if (relType === 'protective')        return protectorIds.length >= 1 && protectedIds.length >= 1;
       if (relType === 'activation_chain')  return chainIds.length >= 2;
       return allianceIds.length >= 2;
@@ -280,19 +299,39 @@ export default function NewRelationshipScreen() {
       );
 
       if (relType === 'polarization') {
-        for (const pid of sideAIds) {
+        if (sideAAllianceId) {
           await db.runAsync(
-            `INSERT INTO relationship_members (id, relationship_id, member_type, part_id, side, created_at)
-             VALUES (?, ?, 'part', ?, 'a', ?)`,
-            [generateId(), relId, pid, now],
+            `INSERT INTO relationship_members
+               (id, relationship_id, member_type, coalition_id, side, created_at)
+             VALUES (?, ?, 'coalition', ?, 'a', ?)`,
+            [generateId(), relId, sideAAllianceId, now],
           );
+        } else {
+          for (const pid of sideAIds) {
+            await db.runAsync(
+              `INSERT INTO relationship_members
+                 (id, relationship_id, member_type, part_id, side, created_at)
+               VALUES (?, ?, 'part', ?, 'a', ?)`,
+              [generateId(), relId, pid, now],
+            );
+          }
         }
-        for (const pid of sideBIds) {
+        if (sideBAllianceId) {
           await db.runAsync(
-            `INSERT INTO relationship_members (id, relationship_id, member_type, part_id, side, created_at)
-             VALUES (?, ?, 'part', ?, 'b', ?)`,
-            [generateId(), relId, pid, now],
+            `INSERT INTO relationship_members
+               (id, relationship_id, member_type, coalition_id, side, created_at)
+             VALUES (?, ?, 'coalition', ?, 'b', ?)`,
+            [generateId(), relId, sideBAllianceId, now],
           );
+        } else {
+          for (const pid of sideBIds) {
+            await db.runAsync(
+              `INSERT INTO relationship_members
+                 (id, relationship_id, member_type, part_id, side, created_at)
+               VALUES (?, ?, 'part', ?, 'b', ?)`,
+              [generateId(), relId, pid, now],
+            );
+          }
         }
         await db.runAsync(
           `INSERT INTO polarization_details (id, relationship_id, created_at, updated_at)
@@ -490,36 +529,150 @@ export default function NewRelationshipScreen() {
             <View style={styles.stepWrap}>
               <Text style={styles.stepQuestion}>Who is on each side?</Text>
 
+              {/* ── Side A ── */}
               <View style={styles.sideBlock}>
                 <Text style={styles.sideLabel}>Side A</Text>
-                <View style={styles.chipsWrap}>
-                  {sideAIds.map((pid) => {
-                    const p = partsMap.get(pid);
-                    if (!p) return null;
-                    return <PartChip key={pid} part={p} onRemove={() => removePart('a', pid)} />;
-                  })}
-                  <TouchableOpacity style={styles.addChipBtn} onPress={() => setSelectorTarget('a')} activeOpacity={0.7}>
-                    <Ionicons name="add" size={16} color="#3B5BA5" />
-                    <Text style={styles.addChipBtnText}>Add Part</Text>
+
+                <View style={polStyles.modeToggle}>
+                  <TouchableOpacity
+                    style={[polStyles.modeBtn, sideAAllianceId === null && polStyles.modeBtnActive]}
+                    onPress={() => { setSideAAllianceId(null); }}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={[polStyles.modeBtnText, sideAAllianceId === null && polStyles.modeBtnTextActive]}>
+                      Individual parts
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[polStyles.modeBtn, sideAAllianceId !== null && polStyles.modeBtnActive]}
+                    onPress={() => { setSideAIds([]); }}
+                    activeOpacity={0.7}
+                    disabled={allAlliances.length === 0}
+                  >
+                    <Text style={[polStyles.modeBtnText, sideAAllianceId !== null && polStyles.modeBtnTextActive,
+                      allAlliances.length === 0 && { opacity: 0.4 }]}>
+                      Alliance
+                    </Text>
                   </TouchableOpacity>
                 </View>
+
+                {sideAAllianceId === null ? (
+                  <View style={styles.chipsWrap}>
+                    {sideAIds.map((pid) => {
+                      const p = partsMap.get(pid);
+                      if (!p) return null;
+                      return <PartChip key={pid} part={p} onRemove={() => removePart('a', pid)} />;
+                    })}
+                    <TouchableOpacity style={styles.addChipBtn} onPress={() => setSelectorTarget('a')} activeOpacity={0.7}>
+                      <Ionicons name="add" size={16} color="#3B5BA5" />
+                      <Text style={styles.addChipBtnText}>Add Part</Text>
+                    </TouchableOpacity>
+                  </View>
+                ) : (
+                  <View style={polStyles.alliancePicker}>
+                    {allAlliances.map((a) => (
+                      <TouchableOpacity
+                        key={a.id}
+                        style={[polStyles.allianceOption, sideAAllianceId === a.id && polStyles.allianceOptionSelected]}
+                        onPress={() => setSideAAllianceId(a.id)}
+                        activeOpacity={0.7}
+                      >
+                        <View style={[polStyles.allianceDot, { backgroundColor: '#4A9B73' }]} />
+                        <Text style={polStyles.allianceOptionText}>{a.name}</Text>
+                        {sideAAllianceId === a.id && (
+                          <Ionicons name="checkmark-circle" size={18} color="#4A9B73" />
+                        )}
+                      </TouchableOpacity>
+                    ))}
+                    {allAlliances.length === 0 && (
+                      <Text style={styles.hint}>No alliances created yet</Text>
+                    )}
+                  </View>
+                )}
+
+                {sideAAllianceId === null && allAlliances.length > 0 && (
+                  <TouchableOpacity
+                    style={polStyles.switchToAllianceBtn}
+                    onPress={() => { setSideAIds([]); setSideAAllianceId(allAlliances[0].id); }}
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons name="layers-outline" size={14} color="#6B6860" />
+                    <Text style={polStyles.switchToAllianceBtnText}>Use an alliance instead</Text>
+                  </TouchableOpacity>
+                )}
               </View>
 
+              {/* ── Side B ── */}
               <View style={styles.sideBlock}>
                 <Text style={styles.sideLabel}>Side B</Text>
-                <View style={styles.chipsWrap}>
-                  {sideBIds.map((pid) => {
-                    const p = partsMap.get(pid);
-                    if (!p) return null;
-                    return <PartChip key={pid} part={p} onRemove={() => removePart('b', pid)} />;
-                  })}
-                  <TouchableOpacity style={styles.addChipBtn} onPress={() => setSelectorTarget('b')} activeOpacity={0.7}>
-                    <Ionicons name="add" size={16} color="#3B5BA5" />
-                    <Text style={styles.addChipBtnText}>Add Part</Text>
+
+                <View style={polStyles.modeToggle}>
+                  <TouchableOpacity
+                    style={[polStyles.modeBtn, sideBAllianceId === null && polStyles.modeBtnActive]}
+                    onPress={() => { setSideBAllianceId(null); }}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={[polStyles.modeBtnText, sideBAllianceId === null && polStyles.modeBtnTextActive]}>
+                      Individual parts
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[polStyles.modeBtn, sideBAllianceId !== null && polStyles.modeBtnActive]}
+                    onPress={() => { setSideBIds([]); }}
+                    activeOpacity={0.7}
+                    disabled={allAlliances.length === 0}
+                  >
+                    <Text style={[polStyles.modeBtnText, sideBAllianceId !== null && polStyles.modeBtnTextActive,
+                      allAlliances.length === 0 && { opacity: 0.4 }]}>
+                      Alliance
+                    </Text>
                   </TouchableOpacity>
                 </View>
+
+                {sideBAllianceId === null ? (
+                  <View style={styles.chipsWrap}>
+                    {sideBIds.map((pid) => {
+                      const p = partsMap.get(pid);
+                      if (!p) return null;
+                      return <PartChip key={pid} part={p} onRemove={() => removePart('b', pid)} />;
+                    })}
+                    <TouchableOpacity style={styles.addChipBtn} onPress={() => setSelectorTarget('b')} activeOpacity={0.7}>
+                      <Ionicons name="add" size={16} color="#3B5BA5" />
+                      <Text style={styles.addChipBtnText}>Add Part</Text>
+                    </TouchableOpacity>
+                  </View>
+                ) : (
+                  <View style={polStyles.alliancePicker}>
+                    {allAlliances.map((a) => (
+                      <TouchableOpacity
+                        key={a.id}
+                        style={[polStyles.allianceOption, sideBAllianceId === a.id && polStyles.allianceOptionSelected]}
+                        onPress={() => setSideBAllianceId(a.id)}
+                        activeOpacity={0.7}
+                      >
+                        <View style={[polStyles.allianceDot, { backgroundColor: '#4A9B73' }]} />
+                        <Text style={polStyles.allianceOptionText}>{a.name}</Text>
+                        {sideBAllianceId === a.id && (
+                          <Ionicons name="checkmark-circle" size={18} color="#4A9B73" />
+                        )}
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                )}
+
+                {sideBAllianceId === null && allAlliances.length > 0 && (
+                  <TouchableOpacity
+                    style={polStyles.switchToAllianceBtn}
+                    onPress={() => { setSideBIds([]); setSideBAllianceId(allAlliances[0].id); }}
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons name="layers-outline" size={14} color="#6B6860" />
+                    <Text style={polStyles.switchToAllianceBtnText}>Use an alliance instead</Text>
+                  </TouchableOpacity>
+                )}
               </View>
-              <Text style={styles.hint}>Minimum 1 member on each side</Text>
+
+              <Text style={styles.hint}>Each side can be individual parts or an existing alliance</Text>
             </View>
           )}
 
@@ -896,5 +1049,79 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#FFFFFF',
+  },
+});
+
+const polStyles = StyleSheet.create({
+  modeToggle: {
+    flexDirection: 'row',
+    backgroundColor: '#F3F2EF',
+    borderRadius: 8,
+    padding: 2,
+    gap: 2,
+  },
+  modeBtn: {
+    flex: 1,
+    paddingVertical: 6,
+    alignItems: 'center',
+    borderRadius: 6,
+  },
+  modeBtnActive: {
+    backgroundColor: '#FFFFFF',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  modeBtnText: {
+    fontSize: 12,
+    color: '#6B6860',
+    fontWeight: '500',
+  },
+  modeBtnTextActive: {
+    color: '#1C1B19',
+    fontWeight: '600',
+  },
+  alliancePicker: {
+    gap: 6,
+  },
+  allianceOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#E5E3DE',
+    backgroundColor: '#FAFAF8',
+  },
+  allianceOptionSelected: {
+    borderColor: '#4A9B73',
+    backgroundColor: '#F0FBF4',
+  },
+  allianceDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+  },
+  allianceOptionText: {
+    flex: 1,
+    fontSize: 14,
+    color: '#1C1B19',
+    fontWeight: '500',
+  },
+  switchToAllianceBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    alignSelf: 'flex-start',
+    paddingVertical: 4,
+  },
+  switchToAllianceBtnText: {
+    fontSize: 12,
+    color: '#6B6860',
+    fontStyle: 'italic',
   },
 });
